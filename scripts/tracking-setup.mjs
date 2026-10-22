@@ -303,7 +303,7 @@ export async function main() {
     );
   }
   process.stdout.write(
-    `\nReady. In Vynlo Settings → Email open tracking, paste the endpoint and connection key from:\n${connectionPath}\n\n` +
+    `\nReady. In Vynlo Settings → Email open tracking, choose "Choose connection file" and select:\n${connectionPath}\n\n` +
       'Keep that file private. Do not commit, screenshot or share the key.\n' +
       'The extension asks permission for your endpoint when you connect.\n' +
       'Tracking stays optional; insert a tracking image only in drafts you choose.\n',

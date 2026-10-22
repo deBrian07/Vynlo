@@ -5,7 +5,7 @@ The feature branch implements a personal, optional Cloudflare Worker service. It
 ## Executed checks
 
 - ESLint, strict TypeScript and formatting pass.
-- Vitest: 168 tests across 24 files pass, including the original functionality.
+- Vitest: 175 tests across 24 files pass, including the original functionality.
 - Worker tests execute the production migration and SQL against real in-memory SQLite. They cover authorization, hashed capabilities, paused/activated records, expiry, rate limiting, bounded writes, deletion and fail-safe image responses.
 - Extension-service tests route actual requests into that Worker with SQLite, covering creation, restart recovery, activation, refresh, revocation, account isolation, denied permissions and invalid responses. No external network is used.
 - Draft tests use representative Gmail fixtures and a mocked native editor command. They cover content/caret preservation, duplicate prevention, modal teardown, unmounts and switching accounts or composers during a request. They do not prove Gmail image persistence or native undo.
@@ -23,3 +23,9 @@ The feature branch implements a personal, optional Cloudflare Worker service. It
 6. Verify core export excludes tracking capabilities/history; clear local data in a test profile and confirm connection/history are gone. Remote deletion is separate and must be completed before clear/uninstall for immediate revocation.
 
 A successful local build does not close these live compatibility gates. Do not publish broad read-receipt claims.
+
+## Guided workflow polish
+
+Connection files are the primary setup path; technical fields and operator help expand on demand. An unconnected draft action opens the specific connection section, with focus and scrolling handled after settings load. After insertion, a persistent prompt links directly to tracked drafts. Paused entries explain sending/activation; expired entries cannot be mistaken for pending opens. Detailed timestamps are collapsed.
+
+Regression tests cover the hidden manual fields, file-ready feedback without automatic consent, direct setup navigation/focus, persistent next-step action, and expired-state behavior. The compact connection form was visually inspected in Chrome against the fictional local preview. The separate Cloudflare and real Gmail gates above remain unchanged.

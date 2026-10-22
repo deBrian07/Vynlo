@@ -13,9 +13,10 @@ Conversations, notes, reminders and snippets continue to work without a server.
 If you already have a Vynlo tracking service, there is no development setup:
 
 1. Open **Vynlo Settings → Email open tracking**.
-2. Paste your service's HTTPS endpoint and connection key. Approve Chrome's request
-   to connect to that address.
-3. Connect, then open a Gmail draft and choose Vynlo's tracking action when you want it.
+2. Choose **Choose connection file** and select `connection.json`. Approve the disclosure, then choose **Connect tracking** and allow Chrome access to that address. Manual entry is available under **Enter connection details manually**.
+3. In Gmail, choose **Track this draft**. After adding the image, the lasting **Review tracked drafts** prompt takes you to activation after sending. Each paused entry explains the next step; detailed timestamps and limitations expand on demand.
+
+If you choose **Track this draft** before connecting, Vynlo opens the connection section directly. Everyday use is guided in the interface; this document is a reference, not a prerequisite.
 
 Use your own key. Do not paste a Cloudflare login, password or account API token into Vynlo.
 The connection key authorizes creating tracking links; treat it as a password.

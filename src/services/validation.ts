@@ -121,9 +121,10 @@ export function validRequest(v: unknown): v is Request {
       return validBackup(v.backup);
     case 'export':
     case 'clear':
-    case 'options':
     case 'complete-onboarding':
       return true;
+    case 'options':
+      return v.section === undefined || v.section === 'open-tracking';
     case 'open':
       return isAccountId(v.accountId) && id(v.conversationId);
     default:

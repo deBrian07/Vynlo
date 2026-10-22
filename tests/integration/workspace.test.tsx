@@ -137,7 +137,9 @@ it('takes an unconnected draft straight to setup without creating a tracking rec
   const adapter = new GmailAdapter();
   const view = render(<ContentApp adapter={adapter} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Track this draft' }));
-  await waitFor(() => expect(request).toHaveBeenCalledWith({ type: 'options' }));
+  await waitFor(() =>
+    expect(request).toHaveBeenCalledWith({ type: 'options', section: 'open-tracking' }),
+  );
   expect(screen.queryByRole('dialog', { name: 'Track this draft' })).not.toBeInTheDocument();
   expect(trackingClient.create).not.toHaveBeenCalled();
   view.unmount();

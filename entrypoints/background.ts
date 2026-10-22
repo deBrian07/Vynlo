@@ -53,8 +53,10 @@ export default defineBackground(() => {
       openTab: async (url) => {
         await chrome.tabs.create({ url });
       },
-      openOptions: async () => {
-        await chrome.runtime.openOptionsPage();
+      openOptions: async (section) => {
+        if (section === 'open-tracking')
+          await chrome.tabs.create({ url: chrome.runtime.getURL('/options.html#open-tracking') });
+        else await chrome.runtime.openOptionsPage();
       },
       publishRevision: async () => {
         await chrome.storage.local.set({ revision: crypto.randomUUID() });

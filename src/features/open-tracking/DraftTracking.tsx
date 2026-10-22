@@ -14,7 +14,10 @@ export function DraftTracking({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const [label, setLabel] = useState(`Draft · ${new Date().toLocaleDateString()}`);
+  const [label, setLabel] = useState(
+    () =>
+      `Draft · ${new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`,
+  );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<{ id: string; pixelUrl: string } | null>(null);

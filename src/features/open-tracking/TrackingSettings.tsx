@@ -16,6 +16,14 @@ export function TrackingSettings() {
   const [fileReady, setFileReady] = useState(false);
   const executing = useRef(false);
   const endpointInput = useRef<HTMLInputElement>(null);
+  const section = useRef<HTMLElement>(null);
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (!snapshot || jumped.current || window.location.hash !== '#open-tracking') return;
+    jumped.current = true;
+    section.current?.scrollIntoView?.({ block: 'start' });
+    section.current?.focus({ preventScroll: true });
+  }, [snapshot]);
   useEffect(() => {
     let alive = true;
     void trackingClient
@@ -38,6 +46,8 @@ export function TrackingSettings() {
     input.value = '';
     if (!file || busy) return;
     setError('');
+    setConsent(false);
+    setFileReady(false);
     try {
       if (file.size > 4096) throw new Error('Invalid file');
       const value: unknown = JSON.parse(await file.text());
@@ -87,6 +97,9 @@ export function TrackingSettings() {
 
   return (
     <section
+      ref={section}
+      id="open-tracking"
+      tabIndex={-1}
       className="settings-section tracking-settings"
       aria-labelledby="tracking-settings-title"
     >

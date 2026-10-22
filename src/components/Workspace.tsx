@@ -409,9 +409,12 @@ export default function Workspace({
               {view === 'open-tracking' && (
                 <TrackingActivity
                   accountId={accountId}
-                  onSettings={() =>
-                    options ? changeView('settings') : act(() => request({ type: 'options' }))
-                  }
+                  onSettings={() => {
+                    if (options) {
+                      window.location.hash = 'open-tracking';
+                      changeView('settings');
+                    } else act(() => request({ type: 'options', section: 'open-tracking' }));
+                  }}
                 />
               )}
               {view === 'settings' && options && (

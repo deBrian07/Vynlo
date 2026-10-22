@@ -282,3 +282,21 @@ it('explains the next step beside paused drafts and distinguishes expired tracki
   expect(await screen.findByText('Tracking expired')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'I’ve sent this' })).not.toBeInTheDocument();
 });
+
+it('focuses the connection section when opened directly from a draft', async () => {
+  window.location.hash = 'open-tracking';
+  const scroll = vi.fn();
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: scroll,
+  });
+  try {
+    render(<TrackingSettings />);
+    await screen.findByLabelText('Import connection file');
+    expect(screen.getByRole('region', { name: 'Email open tracking' })).toHaveFocus();
+    expect(scroll).toHaveBeenCalledWith({ block: 'start' });
+  } finally {
+    window.location.hash = '';
+    delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  }
+});

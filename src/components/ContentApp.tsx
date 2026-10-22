@@ -311,7 +311,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
                 void perform(async () => {
                   const connection = await trackingClient.snapshot(account.id);
                   if (!connection.connected) {
-                    await request({ type: 'options' });
+                    await request({ type: 'options', section: 'open-tracking' });
                     setNotice('Connect open tracking in Settings, then return to your draft.');
                   } else {
                     if (

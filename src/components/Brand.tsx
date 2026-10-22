@@ -1,0 +1,74 @@
+import { useId } from 'react';
+
+/** Local vectors adapted from the approved kit. No page-origin images or external fonts. */
+export function BrandMark({ className = '' }: { className?: string }) {
+  const id = `vynlo-${useId()}`;
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 512 512"
+      width="32"
+      height="32"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <linearGradient id={`${id}-base`} x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#122238" />
+          <stop offset="1" stopColor="#091423" />
+        </linearGradient>
+        <linearGradient id={`${id}-mint`} x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#46E7D6" />
+          <stop offset="1" stopColor="#20CDB9" />
+        </linearGradient>
+        <linearGradient id={`${id}-teal`} x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#398F96" />
+          <stop offset="1" stopColor="#246F7D" />
+        </linearGradient>
+      </defs>
+      <rect width="512" height="512" rx="107" fill={`url(#${id}-base)`} />
+      <path d="M339 149H412L288 363H216Z" fill={`url(#${id}-teal)`} />
+      <path d="M101 149H175L297 363H224Z" fill={`url(#${id}-mint)`} />
+    </svg>
+  );
+}
+export function BrandName() {
+  // Crop the supplied export's whitespace; preserve the outlined glyph proportions.
+  return (
+    <svg
+      className="brand-name"
+      viewBox="12 84 500 202"
+      width="84"
+      height="34"
+      role="img"
+      aria-label="Vynlo"
+      focusable="false"
+    >
+      <path
+        d="M403 0H731L1123 1056H817L645 534C620 451 595 367 571 284C547 367 522 451 495 534L321 1056H12Z"
+        transform="translate(16.000,238.000) scale(0.10009766,-0.10009766)"
+        fill="currentColor"
+      />
+      <path
+        d="M130 -418H325C489 -418 591 -339 658 -163L1123 1056H817L639 534C614 459 591 382 568 306C546 382 522 458 498 534L321 1056H12L418 4L389 -73C361 -154 334 -185 264 -185H130Z"
+        transform="translate(124.511,238.000) scale(0.10009766,-0.10009766)"
+        fill="currentColor"
+      />
+      <path
+        d="M399 587C399 751 484 824 606 824C729 824 800 749 800 607V0H1094V661C1094 928 949 1078 724 1078C572 1078 465 1010 394 890V1056H104V0H399Z"
+        transform="translate(233.021,238.000) scale(0.10009766,-0.10009766)"
+        fill="currentColor"
+      />
+      <path
+        d="M399 1490H104V0H399Z"
+        transform="translate(348.039,238.000) scale(0.10009766,-0.10009766)"
+        fill="currentColor"
+      />
+      <path
+        d="M594 -24C915 -24 1131 196 1131 527C1131 858 915 1080 594 1080C274 1080 58 858 58 527C58 196 274 -24 594 -24ZM594 215C451 215 355 331 355 527C355 724 452 841 594 841C737 841 834 724 834 527C834 331 738 215 594 215Z"
+        transform="translate(393.388,238.000) scale(0.10009766,-0.10009766)"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}

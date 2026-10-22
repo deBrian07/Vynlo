@@ -1,3 +1,4 @@
+import { BrandMark, BrandName } from './Brand';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Command, PanelsTopLeft } from 'lucide-react';
 import type { GmailAdapter } from '../gmail/adapter';
@@ -272,8 +273,8 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
             onPointerDown={() => adapter.captureComposer()}
             onClick={() => show()}
           >
-            <span className="mini-mark">v</span>
-            <span>Vynlo</span>
+            <BrandMark className="mini-mark" />
+            <BrandName />
             <PanelsTopLeft size={16} />
           </button>
           {context.conversation && (

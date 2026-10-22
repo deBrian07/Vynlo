@@ -264,17 +264,28 @@ details p {
 }
 .mini-mark,
 .logo-mark {
-  display: inline-grid;
-  place-items: center;
-  background: var(--accent);
-  color: var(--bg);
-  border-radius: 7px;
-  font-size: 22px;
-  font-weight: 650;
-  font-style: italic;
-  line-height: 1;
-  width: 28px;
-  height: 28px;
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+}
+.brand-name {
+  color: #0f172a;
+  display: block;
+  width: 84px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+.theme-dark .brand-name {
+  color: #fff;
+}
+.gmail-launcher .mini-mark {
+  width: 26px;
+  height: 26px;
+}
+.gmail-launcher .brand-name {
+  width: 64px;
+  height: 26px;
 }
 .gmail-launcher .launcher-command,
 .gmail-launcher .launcher-track {

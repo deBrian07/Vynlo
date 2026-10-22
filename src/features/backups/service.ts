@@ -369,6 +369,7 @@ export function createBackupService(
           if (state.cloud.conflict)
             throw new Error('Restore the latest cloud copy before enabling automatic backups.');
           state.cloud.enabled = true;
+          state.cloud.dirtySince = now();
           state.cloud.dirty = true;
           await store.write(state);
           await upload(true);

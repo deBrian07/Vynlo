@@ -466,4 +466,16 @@ describe('backup service with real encryption, persistent journal and Worker pro
     expect(f.platform.restoreWorkspace).not.toHaveBeenCalled();
     expect(f.platform.restoreAddons).not.toHaveBeenCalled();
   });
+  it('does not postpone a queued backup indefinitely while edits continue', async () => {
+    const f = fixture();
+    await f.enable();
+    await f.service.changed();
+    const first = vi.mocked(f.platform.setAlarm).mock.calls.at(-1)?.[0];
+    f.advance(30_000);
+    await f.service.changed();
+    expect(vi.mocked(f.platform.setAlarm).mock.calls.at(-1)?.[0]).toBe(first);
+    f.advance(30_000);
+    await f.service.process();
+    expect((await f.store.read()).cloud?.dirty).toBe(false);
+  });
 });

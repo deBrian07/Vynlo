@@ -18,6 +18,7 @@ import { CommandPalette } from '../features/command-palette/CommandPalette';
 import { createCommandRegistry } from '../features/command-palette/registry';
 import { Loading, Modal } from './ui';
 import { ThreadControl, threadControlPosition } from '../features/conversations/ThreadControl';
+import { DraftTracking } from '../features/open-tracking/DraftTracking';
 const Workspace = lazy(() => import('./Workspace'));
 
 export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
@@ -29,6 +30,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
   const [edit, setEdit] = useState(0);
   const [remind, setRemind] = useState(0);
   const [help, setHelp] = useState(false);
+  const [draftTracking, setDraftTracking] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [ready, setReady] = useState(false);
@@ -288,6 +290,19 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
               Track conversation
             </button>
           )}
+          {context.hasComposer && context.account && (
+            <button
+              className="launcher-track"
+              onPointerDown={() => adapter.captureComposer()}
+              onClick={() => {
+                adapter.captureComposer();
+                const account = adapter.getCurrentAccount();
+                if (account) setDraftTracking(account.id);
+              }}
+            >
+              Track this draft
+            </button>
+          )}
           <button
             className="launcher-command"
             aria-label="Open command palette"
@@ -322,6 +337,14 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
         </Suspense>
       )}
       {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}
+      {draftTracking && (
+        <DraftTracking
+          adapter={adapter}
+          accountId={draftTracking}
+          onClose={() => setDraftTracking(null)}
+          onDone={setNotice}
+        />
+      )}
       {help && (
         <Modal title="Keyboard shortcuts" onClose={() => setHelp(false)}>
           <dl className="shortcut-list">

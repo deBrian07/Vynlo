@@ -212,6 +212,59 @@ export class GmailAdapter {
     this.captureComposer();
   }
 
+  /** Insert only our validated HTTPS pixel, through Chromium's native editing pipeline. */
+  insertTrackingPixel(pixelUrl: string): void {
+    if (!/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev\/p\/[a-f0-9]{64}\.gif$/.test(pixelUrl))
+      throw new Error('The tracking image address is invalid. Your draft was not changed.');
+    const editor = this.composer;
+    if (!editor || !this.visible(editor) || this.getCurrentAccount()?.id !== this.composerAccount)
+      throw new Error('The draft changed. Focus the intended draft and try again.');
+    if (
+      editor.querySelector('img[data-vynlo-tracking]') ||
+      Array.from(editor.querySelectorAll('img')).some((img) =>
+        /\/p\/[a-f0-9]{64}\.gif/.test(img.src),
+      )
+    )
+      throw new Error(
+        'This draft already contains a tracking image. Use a separate draft for a new entry.',
+      );
+    const saved = this.caret?.cloneRange();
+    editor.focus();
+    if (this.doc.activeElement !== editor)
+      throw new Error('Close other dialogs and focus your Gmail draft first.');
+    const selection = this.doc.getSelection();
+    if (!selection) throw new Error('The draft cursor is unavailable.');
+    const end = this.doc.createRange();
+    end.selectNodeContents(editor);
+    end.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(end);
+    if (
+      typeof this.doc.execCommand !== 'function' ||
+      !this.doc.execCommand('insertImage', false, pixelUrl)
+    )
+      throw new Error(
+        'This browser could not add the tracking image. Your email has not been sent.',
+      );
+    const image = Array.from(editor.querySelectorAll('img')).find(
+      (img) => img.getAttribute('src') === pixelUrl,
+    );
+    if (!image)
+      throw new Error(
+        'Gmail changed the inserted image. Check your draft before sending; tracking may be unavailable.',
+      );
+    image.setAttribute('width', '1');
+    image.setAttribute('height', '1');
+    image.setAttribute('alt', '');
+    image.setAttribute('data-vynlo-tracking', 'true');
+    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
+    if (saved && editor.contains(saved.startContainer) && editor.contains(saved.endContainer)) {
+      selection.removeAllRanges();
+      selection.addRange(saved);
+    }
+    this.captureComposer();
+  }
+
   navigateToGmailView(view: 'inbox' | 'sent' | 'drafts' | 'starred'): void {
     this.win.location.hash = view;
   }

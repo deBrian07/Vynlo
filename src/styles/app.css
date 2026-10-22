@@ -694,14 +694,17 @@ details p {
 .conversation-dashboard .stats-grid {
   background: transparent;
   border-radius: 0;
-  border-width: 1px 0;
-  margin-bottom: 20px;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 24px;
 }
 .conversation-dashboard .stats-grid > div {
   flex-direction: row;
   align-items: baseline;
   gap: 7px;
-  padding: 12px 10px;
+  padding: 0;
   border-right: 0;
 }
 .conversation-dashboard .stats-grid > div:first-child {
@@ -716,15 +719,36 @@ details p {
   font-size: 11px;
 }
 .conversation-dashboard .conversation-group {
-  margin-top: 16px;
+  margin-top: 22px;
 }
 .conversation-dashboard .conversation-row {
-  border-radius: 0;
+  border-radius: 8px;
   padding-top: 12px;
   padding-bottom: 12px;
 }
+.conversation-dashboard .conversation-row:last-child {
+  border-bottom-color: transparent;
+}
+.conversation-dashboard .filter-bar > select {
+  border-color: transparent;
+  background: var(--surface);
+}
+.conversation-dashboard .row-status {
+  background: transparent;
+}
+.vynlo .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 .conversation-dashboard .filter-tabs button {
-  border-radius: 7px;
+  border-radius: 5px;
 }
 .conversation-group > h2 {
   font-size: 11px;
@@ -853,12 +877,22 @@ details p {
 }
 .due-actions {
   display: flex;
-  gap: 6px;
-  margin-top: 9px;
+  gap: 14px;
+  margin-top: 6px;
+  flex-wrap: wrap;
 }
 .due-actions button {
   font-size: 11px;
-  padding: 3px 7px;
+  padding: 3px 0;
+  min-height: 28px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.due-actions button:hover {
+  color: var(--text);
+  background: transparent;
+  text-decoration: underline;
 }
 .empty {
   display: flex;

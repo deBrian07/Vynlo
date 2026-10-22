@@ -1,3 +1,4 @@
+import { BrandMark } from './Brand';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Command, PanelsTopLeft } from 'lucide-react';
 import type { GmailAdapter } from '../gmail/adapter';
@@ -269,10 +270,11 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
           <button
             className="launcher-button"
             aria-label="Open Vynlo"
+            title="Open Vynlo"
             onPointerDown={() => adapter.captureComposer()}
             onClick={() => show()}
           >
-            <span className="mini-mark">v</span>
+            <BrandMark className="mini-mark" />
             <span>Vynlo</span>
             <PanelsTopLeft size={16} />
           </button>
@@ -284,6 +286,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
                 setEdit((n) => n + 1);
               }}
               aria-label="Track conversation"
+              title="Track conversation"
             >
               Track conversation
             </button>
@@ -291,7 +294,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
           <button
             className="launcher-command"
             aria-label="Open command palette"
-            title={formatShortcut(settings.shortcuts.palette)}
+            title={`Commands (${formatShortcut(settings.shortcuts.palette)})`}
             onPointerDown={() => adapter.captureComposer()}
             onClick={() => setPalette(true)}
           >

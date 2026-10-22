@@ -1,0 +1,125 @@
+.preview-tools {
+  margin: 24px 22px 0;
+  padding-top: 12px;
+}
+.preview-appearance {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+}
+.preview-appearance button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  font-size: 11px;
+  padding: 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.preview-appearance button[aria-pressed='true'] {
+  background: var(--surface-hover);
+  border-color: transparent;
+  color: var(--text);
+}
+.preview-tools .preview-command {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.preview-command kbd {
+  margin-left: auto;
+  font-size: 10px;
+}
+.preview-tagline {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 14px !important;
+}
+.preview-developer-tools {
+  color: var(--muted);
+  margin-top: 18px;
+  font-size: 10px;
+}
+.preview-disclosure {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.preview-developer-tools summary {
+  font-size: 10px;
+}
+.preview-developer-tools p {
+  font-size: 10px;
+  line-height: 1.6;
+}
+.preview-developer-tools button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-top: 8px;
+  padding: 6px 8px;
+}
+.preview-lab-frame {
+  max-width: 1120px;
+  margin: 32px auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.preview-lab-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.preview-lab-actions button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .preview-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0;
+    padding: 12px 24px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .preview-appearance {
+    width: 150px;
+  }
+  .preview-tools .preview-command {
+    width: auto;
+    margin: 0;
+    gap: 8px;
+  }
+  .preview-tagline {
+    display: none;
+  }
+  .preview-developer-tools {
+    margin: 0;
+  }
+  .preview-lab-frame {
+    margin: 16px auto;
+  }
+}

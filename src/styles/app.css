@@ -4,16 +4,29 @@
   all: initial;
 }
 .vynlo {
-  --bg: #fff;
-  --surface: #f7f8fa;
-  --surface-hover: #f0f0f6;
-  --text: #242631;
-  --muted: #686c7d;
-  --line: #e8eaf0;
-  --accent: #6355d8;
-  --accent-soft: #efedfc;
-  --shadow: 0 16px 64px #20243a1a, 0 2px 8px #20243a08;
-  --danger: #bd3643;
+  --brand-navy: #0f172a;
+  --brand-mint: #2dd4bf;
+  --brand-teal: #2c8791;
+  --bg: #ffffff;
+  --surface: #f8fafc;
+  --surface-hover: #edf4f5;
+  --sidebar: #f8fafc;
+  --text: #0f172a;
+  --muted: #53647a;
+  --line: #dfe7ee;
+  --field-border: #8195a6;
+  --accent: #136b6a;
+  --accent-soft: #e5f6f2;
+  --action: #0f172a;
+  --action-hover: #223b50;
+  --on-action: #ffffff;
+  --danger: #b83e50;
+  --on-danger: #ffffff;
+  --waiting: #92601d;
+  --needs-reply: #28688f;
+  --resolved: #23705b;
+  --backdrop: #0f172a52;
+  --shadow: 0 16px 64px #0f172a1a, 0 2px 8px #0f172a08;
   color: var(--text);
   font:
     14px/1.5 -apple-system,
@@ -24,16 +37,26 @@
   color-scheme: light;
 }
 .theme-dark {
-  --bg: #1d1b1a;
-  --surface: #252321;
-  --surface-hover: #302d2b;
-  --text: #f1eeeb;
-  --muted: #aaa49e;
-  --line: #36322f;
-  --accent: #b3a4e5;
-  --accent-soft: #332d3d;
-  --danger: #ff8c9b;
-  --shadow: 0 16px 64px #0006, 0 2px 8px #0003;
+  --bg: #122235;
+  --surface: #172a3d;
+  --surface-hover: #20394c;
+  --sidebar: #101d2c;
+  --text: #e8eff5;
+  --muted: #aabacb;
+  --line: #2c4357;
+  --field-border: #617c91;
+  --accent: #5ae0ca;
+  --accent-soft: #163c3f;
+  --action: #2dd4bf;
+  --action-hover: #62e2d0;
+  --on-action: #0f172a;
+  --danger: #ff9eae;
+  --on-danger: #0f172a;
+  --waiting: #e9bf77;
+  --needs-reply: #91c4e6;
+  --resolved: #72d6af;
+  --backdrop: #060f1e99;
+  --shadow: 0 16px 64px #060f1e66, 0 2px 8px #060f1e33;
   color-scheme: dark;
 }
 .vynlo *,
@@ -176,13 +199,12 @@ details p {
   align-items: center;
 }
 .vynlo .primary {
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--action);
+  color: var(--on-action);
   border-color: transparent;
 }
 .vynlo .primary:hover {
-  filter: brightness(0.95);
-  background: var(--accent);
+  background: var(--action-hover);
 }
 .vynlo .danger {
   color: var(--danger);
@@ -207,7 +229,7 @@ details p {
 .vynlo .danger-filled {
   background: var(--danger);
   border-color: transparent;
-  color: var(--bg);
+  color: var(--on-danger);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -270,7 +292,7 @@ details p {
   flex: 0 0 auto;
 }
 .brand-name {
-  color: #0f172a;
+  color: var(--brand-navy);
   display: block;
   width: 84px;
   height: 34px;
@@ -434,7 +456,7 @@ details p {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #62a38a;
+  background: var(--resolved);
 }
 .account-dot.is-unverified {
   background: var(--muted);
@@ -673,16 +695,16 @@ details p {
   border-radius: 50%;
 }
 .status-dot.waiting {
-  color: #bc8c34;
+  color: var(--waiting);
 }
 .status-dot.needs-reply {
-  color: #5a94c9;
+  color: var(--needs-reply);
 }
 .status-dot.follow-up {
   color: var(--accent);
 }
 .status-dot.resolved {
-  color: #5a9b7b;
+  color: var(--resolved);
   background: currentColor;
 }
 .status-dot.untracked {
@@ -829,7 +851,7 @@ details p {
   width: min(620px, calc(100vw - 36px));
 }
 .vynlo dialog::backdrop {
-  background: #11111b55;
+  background: var(--backdrop);
   backdrop-filter: blur(3px);
 }
 .modal-header {
@@ -976,7 +998,7 @@ details p {
 }
 .toast.error {
   background: var(--danger);
-  color: var(--bg);
+  color: var(--on-danger);
 }
 .settings-section {
   padding: 22px 0;
@@ -1175,23 +1197,15 @@ kbd {
   position: fixed;
   inset: 0;
   z-index: 2147483640;
-  background: #00000008;
+  background: var(--backdrop);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding-top: min(18vh, 150px);
 }
 .palette-dialog {
-  --bg: #1d1b1a;
-  --surface: #292624;
-  --surface-hover: #35312e;
-  --line: #3b3734;
-  --text: #f1eeeb;
-  --muted: #a39e98;
-  --accent: #b3a4e5;
-  --accent-soft: #36322f;
   color: var(--text);
-  color-scheme: dark;
   width: min(560px, calc(100vw - 32px));
   background: var(--bg);
   border: 1px solid var(--line);
@@ -1291,8 +1305,8 @@ kbd {
   flex-direction: column;
   gap: 2px;
   font-size: 13px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: -0.25px;
+  font-family: inherit;
+  letter-spacing: -0.1px;
 }
 .palette-command-label .palette-command-meta {
   font-size: 11px;

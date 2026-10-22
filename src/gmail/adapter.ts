@@ -213,10 +213,19 @@ export class GmailAdapter {
   }
 
   /** Insert only our validated HTTPS pixel, through Chromium's native editing pipeline. */
-  insertTrackingPixel(pixelUrl: string): void {
+  captureTrackingTarget(): { editor: HTMLElement; accountId: string } {
+    this.captureComposer();
+    if (!this.composer || !this.composerAccount || !this.visible(this.composer))
+      throw new Error('Focus the intended Gmail draft first.');
+    return { editor: this.composer, accountId: this.composerAccount };
+  }
+
+  insertTrackingPixel(pixelUrl: string, target?: { editor: HTMLElement; accountId: string }): void {
     if (!/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev\/p\/[a-f0-9]{64}\.gif$/.test(pixelUrl))
       throw new Error('The tracking image address is invalid. Your draft was not changed.');
     const editor = this.composer;
+    if (target && (target.editor !== editor || target.accountId !== this.getCurrentAccount()?.id))
+      throw new Error('The account or draft changed. Reopen tracking from the intended draft.');
     if (!editor || !this.visible(editor) || this.getCurrentAccount()?.id !== this.composerAccount)
       throw new Error('The draft changed. Focus the intended draft and try again.');
     if (

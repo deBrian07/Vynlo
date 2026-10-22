@@ -18,12 +18,25 @@ export function DraftTracking({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<{ id: string; pixelUrl: string } | null>(null);
+  const [target] = useState(() => {
+    try {
+      return adapter.captureTrackingTarget();
+    } catch {
+      return null;
+    }
+  });
   const executing = useRef(false);
   useEffect(() => {
     if (!created) return;
     // The modal is unmounted before native editing, so the Gmail composer is no longer inert.
     try {
-      adapter.insertTrackingPixel(created.pixelUrl);
+      if (
+        !target ||
+        target.accountId !== accountId ||
+        adapter.getCurrentAccount()?.id !== accountId
+      )
+        throw new Error('The account or draft changed. Reopen tracking from the intended draft.');
+      adapter.insertTrackingPixel(created.pixelUrl, target);
       onDone(
         'Tracking image added. Send through Gmail, then open Vynlo → Open tracking → I’ve sent this.',
       );
@@ -35,7 +48,7 @@ export function DraftTracking({
       setError(error instanceof Error ? error.message : 'The image could not be inserted.');
       // The remote entry remains paused and visible in history for explicit removal/recovery.
     }
-  }, [adapter, created, onClose, onDone]);
+  }, [adapter, accountId, target, created, onClose, onDone]);
   if (created) return null;
   return (
     <Modal title="Track this draft" onClose={onClose} busy={busy} restoreFocus={false}>
@@ -43,6 +56,14 @@ export function DraftTracking({
         onSubmit={(event) => {
           event.preventDefault();
           if (executing.current) return;
+          if (
+            !target ||
+            target.accountId !== accountId ||
+            adapter.getCurrentAccount()?.id !== accountId
+          ) {
+            setError('The account or draft changed. Reopen tracking from the intended draft.');
+            return;
+          }
           executing.current = true;
           setBusy(true);
           setError('');

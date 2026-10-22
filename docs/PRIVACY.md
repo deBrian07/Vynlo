@@ -1,6 +1,6 @@
 # Privacy policy draft
 
-Applies to the Vynlo 0.1 local-first extension. Reviewed against the implementation on 2026-10-21. Before public distribution, the maintainer must publish this policy at a stable URL and add a real support contact.
+Applies to the Vynlo 0.1 local-first extension. Reviewed against the implementation on 2026-10-22. Before public distribution, the maintainer must publish this policy at a stable URL and add a real support contact.
 
 ## Data Vynlo handles
 
@@ -12,17 +12,25 @@ Vynlo does not store entire received message bodies or attachments. Text you del
 
 ## Where data goes
 
-Structured records stay in IndexedDB under the extension origin. Small preferences and UI revision signals use `chrome.storage.local`. Vynlo does not use Chrome storage sync, run a server, request Google OAuth, use a Gmail API token, collect analytics or send your records to the project maintainer or third parties.
+Structured records stay in IndexedDB under the extension origin. Small preferences and UI revision signals use `chrome.storage.local`. Vynlo does not use Chrome storage sync, request Google OAuth, use a Gmail API token or collect analytics. The core features transmit no records to the project maintainer. Optional open tracking is described below.
 
-The extension has no remote AI service, advertising, tracking pixels or automatic email sending. Inserting a snippet edits your Gmail draft only when you request it. Google may sync that draft as part of Gmail's normal behavior; Vynlo does not control Gmail's own network activity.
+The extension has no remote AI service, advertising or automatic email sending. Tracking pixels are disabled by default and added only to drafts you explicitly choose after connecting a service. Inserting a snippet edits your Gmail draft only when you request it. Google may sync that draft as part of Gmail's normal behavior; Vynlo does not control Gmail's own network activity.
 
 Desktop reminders use generic text without the conversation subject or contact name. Your browser and operating system control notification display. Clicking a reminder opens its saved Gmail reference. Exporting creates a JSON file on your device; you decide whether to share or move that file.
+
+## Optional open tracking
+
+Connecting requires explicit consent and host permission for the selected HTTPS `*.workers.dev` endpoint. The service receives opaque random IDs and read/delete capability tokens, stores hashes of the capabilities and image-load times/counts, and expires records after 30 days. It receives no subjects, recipients, message bodies or user-authored local labels. Local account associations and labels remain in a separate extension-owned IndexedDB database; credentials remain in trusted-context `chrome.storage.local` and are excluded from standard backups.
+
+The recipient’s client or image proxy requests the image from Cloudflare, which necessarily processes IP addresses and other request metadata. The Worker does not persist IP addresses or user agents; observability is disabled in the supplied configuration. Provider infrastructure may handle/retain metadata under its own terms. Proxy caching, scanners, image blocking and your own sent-message views make events uncertain. Activation is manual after sending; it does not verify Gmail sent the email.
+
+Disconnecting forgets the creation key but does not revoke images already inserted. Delete individual activity entries to revoke them remotely; otherwise they expire after 30 days and are removed by daily cleanup. Clearing local data/uninstalling cannot delete remote records and loses local revocation capabilities. Delete remote entries first if you want immediate revocation. Existing message images remain in Gmail after local deletion.
 
 ## Security and retention
 
 Vynlo does not encrypt its database or exported backups. It does not provide end-to-end encryption. Browser-profile access, device malware, backups of your computer or an untrusted extension update can expose local records. Protect your device and exported files accordingly.
 
-Records remain until you delete them, clear Vynlo data, remove the extension or clear the relevant browser-profile data. There is no automatic retention timer. Browser removal and storage clearing are controlled by the browser; export anything you want to keep first. Clearing Vynlo data does not delete Gmail messages or backup files you previously downloaded.
+Records remain until you delete them, clear Vynlo data, remove the extension or clear the relevant browser-profile data. Core local records have no automatic retention timer; optional remote tracking records expire after 30 days. Browser removal and storage clearing are controlled by the browser; export anything you want to keep first. Clearing Vynlo data does not delete Gmail messages or backup files you previously downloaded.
 
 ## Your controls
 
@@ -42,3 +50,5 @@ Vynlo does not request browsing history, all-site access, cookies or the `tabs` 
 ## Publication review
 
 Local handling still involves user data. The Chrome Web Store disclosure must accurately describe account identifiers and communication-related references, even though they are not transmitted. The publisher should review the current [User Data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq) and [Limited Use policy](https://developer.chrome.com/docs/webstore/program-policies/limited-use) against the final package. This draft is not a claim of store approval or legal compliance.
+
+Optional host permission `https://*.workers.dev/*` is declared but not granted at install. Connecting asks for the selected origin only. No remote executable code is loaded. See [tracking setup and limitations](OPEN_TRACKING.md).

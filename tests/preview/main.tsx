@@ -47,7 +47,15 @@ Object.defineProperty(window, 'chrome', {
   configurable: true,
   value: {
     runtime: {
-      sendMessage: (message: Request) => service.handle(message, sender),
+      sendMessage: (message: Request | { type: string }) =>
+        message.type === 'tracking-snapshot'
+          ? Promise.resolve({ ok: true, data: { connected: false, records: [] } })
+          : message.type.startsWith('tracking-')
+            ? Promise.resolve({
+                ok: false,
+                error: 'Remote tracking is unavailable in this fictional preview.',
+              })
+            : service.handle(message, sender),
       getManifest: () => ({ version: '0.1.0' }),
     },
     storage: {

@@ -410,7 +410,7 @@ export function SettingsView({
               }, 'Backup downloaded')
             }
           >
-            <Download size={13} /> Export all data
+            <Download size={13} /> Export workspace data
           </button>
           <label className="file-button">
             <Upload size={13} /> Import backup
@@ -473,7 +473,10 @@ export function SettingsView({
           }
         >
           This permanently removes all Vynlo conversations, notes, reminders, snippets and
-          preferences in this browser profile. Export a backup first. Gmail messages are unchanged.
+          preferences and local open-tracking history in this browser profile. Export a backup
+          first. Open-tracking history and keys are excluded from backups. Delete activity entries
+          before clearing to revoke remote pixels; otherwise they remain active until expiry. Gmail
+          messages are unchanged.
         </Confirm>
       )}
       {pendingImport && (

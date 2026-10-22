@@ -329,7 +329,8 @@ export default function Workspace({
                   <strong>A quieter way to keep up.</strong>
                   <p>
                     Track the conversations that matter, leave yourself a note and come back at the
-                    right time. Everything stays in this browser. Reminders don’t check for replies.
+                    right time. Workspace records stay in this browser. Optional open tracking uses
+                    your configured service. Reminders don’t check for replies.
                   </p>
                   <button
                     onClick={() =>

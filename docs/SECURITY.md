@@ -1,6 +1,6 @@
 # Security model
 
-Vynlo's initial release handles personal email references and user-authored notes locally. There is no backend, Gmail API authorization, remote script loader or automatic message-sending path.
+Vynlo's initial release handles personal email references and user-authored notes locally. There is no Gmail API authorization, remote script loader or automatic message-sending path. An explicitly enabled optional Cloudflare module handles image-load tracking.
 
 ## Boundaries and controls
 
@@ -9,7 +9,7 @@ Vynlo's initial release handles personal email references and user-authored note
 - Account-scoped queries and mutations check account ownership. Numeric Gmail account slots are never database namespaces. This prevents accidental cross-account association; it is not cryptographic authentication of page-provided identities.
 - Saved links are restricted to the expected Gmail origin, account query and thread hash before opening. Imported backups receive schema, length, duplicate-ID and relationship validation.
 - Snippets resolve to plain text. Composer insertion uses Chromium's native text-editing command; it does not parse template text as HTML or activate Gmail's Send control.
-- The production extension-page CSP permits only packaged scripts and blocks network connections. Content scripts do not load executable remote code. Development tooling may use a local development server; audit the production package separately.
+- The production extension-page CSP permits only packaged scripts and allows connections only to Cloudflare Workers; runtime host permissions are requested only for the chosen endpoint. No connection is made by the tracking service until the user connects it. Content scripts do not load executable remote code. Development tooling may use a local development server; audit the production package separately.
 - Database operations use transactions. A settings journal recovers interrupted cross-storage imports. Alarms are reconstructed from durable reminder records.
 
 ## Limits of protection
@@ -32,3 +32,9 @@ Notification delivery is best-effort. Persisting the attempt before calling Chro
 A public security-reporting contact has not been configured for this preview. Before publication, the maintainer must establish a private reporting channel and add it here. Do not post personal messages, account addresses, browser profiles, tokens or complete backups in a public issue. Use synthetic reproduction data and describe the affected version and boundary.
 
 See [privacy](PRIVACY.md), [release checks](RELEASE.md) and the project [working rules](../AGENTS.md).
+
+## Optional image-load service
+
+The Worker uses prepared D1 statements, hashes per-record read/delete capabilities, validates bounded requests, rate-limits calls, caps/coalesces image-load writes and expires records after 30 days. Unknown/expired pixels return the same GIF; HEAD does not record an open. Records are inactive until the sender explicitly activates them after sending. Public IDs cannot read history; the creation key cannot list records. Authorized extension pages alone can change the connection. Gmail scripts never receive keys or capabilities.
+
+Only HTTPS root Workers subdomains are accepted; redirects are refused, credentials are omitted, and fetches time out. Connection settings are kept outside imports/exports. Service-worker restart recovery uses persisted per-record capabilities. A lost creation response may leave a paused entry for deletion or eventual expiry. No automatic send detection is claimed. A holder of a public pixel URL can create false events after activation, and a holder of a private capability can access its record. Shared creation keys are intended for personal self-hosting; a public multi-user service requires stronger provisioning and abuse controls.

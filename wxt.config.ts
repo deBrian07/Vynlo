@@ -11,9 +11,10 @@ export default defineConfig({
       'Email, without the friction. Local conversation tracking, reminders and snippets for Gmail.',
     minimum_chrome_version: '120',
     permissions: ['storage', 'alarms', 'notifications'],
+    optional_host_permissions: ['http://127.0.0.1/*'],
     icons: { 16: '/icons/16.png', 32: '/icons/32.png', 48: '/icons/48.png', 128: '/icons/128.png' },
     content_security_policy: {
-      extension_pages: "script-src 'self'; object-src 'self'; connect-src 'none'",
+      extension_pages: "script-src 'self'; object-src 'self'; connect-src http://127.0.0.1:11434",
     },
   },
 });

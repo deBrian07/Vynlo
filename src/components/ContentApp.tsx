@@ -16,6 +16,7 @@ import {
 import { matchShortcut, formatShortcut } from '../features/shortcuts/shortcuts';
 import { CommandPalette } from '../features/command-palette/CommandPalette';
 import { createCommandRegistry } from '../features/command-palette/registry';
+import { useAutomaticClassification } from '../features/classification/useAutomaticClassification';
 import { Loading, Modal } from './ui';
 import { ThreadControl, threadControlPosition } from '../features/conversations/ThreadControl';
 const Workspace = lazy(() => import('./Workspace'));
@@ -33,6 +34,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
   const [notice, setNotice] = useState('');
   const [ready, setReady] = useState(false);
   const started = useRef(false);
+  useAutomaticClassification(context.conversation, ready && settings.enabled);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(''), 3500);

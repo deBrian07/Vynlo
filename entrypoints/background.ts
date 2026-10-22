@@ -1,9 +1,38 @@
 import { defineBackground } from 'wxt/utils/define-background';
-import { createBackgroundHandler, REMINDER_ALARM } from '../src/services/background';
+import { createBackgroundHandler, REMINDER_ALARM, senderKind } from '../src/services/background';
+import { createClassificationService } from '../src/features/classification/service';
+import { DEFAULT_CLASSIFICATION } from '../src/features/classification/model';
+import { VynloDatabase } from '../src/services/storage/database';
+import { validRequest, validSettings } from '../src/services/validation';
 import { starterSnippets } from '../src/features/snippets/starters';
 
 export default defineBackground(() => {
+  const database = new VynloDatabase();
+  const publishRevision = async () => {
+    await chrome.storage.local.set({ revision: crypto.randomUUID() });
+  };
+  const classifier = createClassificationService({
+    database,
+    platform: {
+      extensionId: chrome.runtime.id,
+      getPreferences: async () =>
+        (await chrome.storage.local.get('classificationPreferences')).classificationPreferences,
+      setPreferences: async (classificationPreferences) => {
+        await chrome.storage.local.set({ classificationPreferences });
+      },
+      hasPermission: () => chrome.permissions.contains({ origins: ['http://127.0.0.1/*'] }),
+      isEnhancementEnabled: async () => {
+        const { settings } = await chrome.storage.local.get('settings');
+        return settings === undefined || (validSettings(settings) && settings.enabled);
+      },
+      publishRevision,
+      openTab: async (url) => {
+        await chrome.tabs.create({ url });
+      },
+    },
+  });
   const service = createBackgroundHandler({
+    database,
     seedSnippets: starterSnippets,
     platform: {
       extensionId: chrome.runtime.id,
@@ -35,14 +64,41 @@ export default defineBackground(() => {
       openOptions: async () => {
         await chrome.runtime.openOptionsPage();
       },
-      publishRevision: async () => {
-        await chrome.storage.local.set({ revision: crypto.randomUUID() });
-      },
+      publishRevision,
     },
   });
   chrome.runtime.onMessage.addListener((message: unknown, sender, respond) => {
-    void service.handle(message, sender).then(respond);
+    const handle = async () => {
+      if (
+        typeof message === 'object' &&
+        message !== null &&
+        'type' in message &&
+        typeof message.type === 'string' &&
+        message.type.startsWith('classify-')
+      ) {
+        return classifier.handle(message, sender);
+      }
+      if (
+        senderKind(sender, chrome.runtime.id) === 'extension' &&
+        validRequest(message) &&
+        (message.type === 'clear' ||
+          message.type === 'import' ||
+          (message.type === 'settings' && !message.settings.enabled))
+      ) {
+        classifier.invalidate();
+        if (message.type === 'clear') {
+          await chrome.storage.local.set({ classificationPreferences: DEFAULT_CLASSIFICATION });
+        }
+      }
+      return service.handle(message, sender);
+    };
+    void handle().then(respond, () =>
+      respond({ ok: false, error: 'Vynlo could not complete this action. Please try again.' }),
+    );
     return true;
+  });
+  chrome.permissions.onRemoved.addListener(() => {
+    classifier.invalidate();
   });
   const recover = () => {
     void service.reconcile().catch(() => undefined);

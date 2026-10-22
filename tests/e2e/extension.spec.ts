@@ -298,7 +298,7 @@ test('schedules and dismisses a reminder using the visible conversation controls
   await editor.getByLabel('Tracking status').selectOption('follow-up');
   await editor.getByLabel('Set a reminder after saving').check();
   await editor.getByRole('button', { name: 'Save & set reminder', exact: true }).click();
-  await page.getByRole('button', { name: 'Tomorrow', exact: true }).click();
+  await page.getByRole('button', { name: /^Tomorrow\b/ }).click();
   await dashboard();
   await expect(page.locator('.due-chip')).toBeVisible();
   await page.locator('.due-chip').click();
@@ -346,7 +346,7 @@ test('renders representative fixture views in light, dark and narrow layouts', a
         accountId: 'person@example.com',
         threadId: record.threadId,
         title: record.title,
-        url: `https://mail.google.com/mail/u/0/#all/${record.threadId}`,
+        url: `https://mail.google.com/mail/u/0/?authuser=person%40example.com#all/${record.threadId}`,
       },
       status: record.status,
       note: record.note,
@@ -384,4 +384,41 @@ test('renders representative fixture views in light, dark and narrow layouts', a
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
   await expect(page.getByRole('combobox', { name: 'Search commands' })).toBeVisible();
   await page.screenshot({ path: resolve('artifacts/fixture-palette.png'), fullPage: true });
+});
+
+test('manual email tags persist without AI and remain isolated across Gmail accounts', async () => {
+  const localRequests: string[] = [];
+  context.on('request', (request) => {
+    if (request.url().startsWith('http://127.0.0.1:11434')) localRequests.push(request.url());
+  });
+  await dashboard();
+  await page
+    .getByRole('region', { name: 'Current conversation tag' })
+    .getByLabel('Category', { exact: true })
+    .selectOption('work');
+  await expect
+    .poll(
+      async () =>
+        (await request({ type: 'snapshot', accountId: 'person@example.com' })).emailTags?.[0]
+          ?.source,
+    )
+    .toBe('manual');
+  await page.reload();
+  await dashboard();
+  await expect(
+    page
+      .getByRole('region', { name: 'Current conversation tag' })
+      .getByLabel('Category', { exact: true }),
+  ).toHaveValue('work');
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  await expect(page.locator('.email-tags .contact-card')).toContainText('Project check-in');
+  await expect(page.locator('.email-tags .contact-card')).toContainText('Reviewed');
+  await page.goto(`https://mail.google.com/mail/u/1/?fixtureAccount=b#all/${thread}`);
+  await dashboard();
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  await expect(page.locator('.email-tags .contact-card')).toHaveCount(0);
+  expect(
+    (await request({ type: 'snapshot', accountId: 'person@example.com' })).emailTags,
+  ).toHaveLength(1);
+  expect(localRequests).toEqual([]);
 });

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Workspace from '../../src/components/Workspace';
 import { CommandPalette, type Command } from '../../src/features/command-palette/CommandPalette';
 import { ErrorBoundary } from '../../src/components/ErrorBoundary';
+import { DraftLab } from './DraftLab';
 import { starterSnippets } from '../../src/features/snippets/starters';
 import { createBackgroundHandler, type BackgroundPlatform } from '../../src/services/background';
 import { VynloDatabase } from '../../src/services/storage/database';
@@ -125,6 +126,7 @@ function Preview() {
   const [theme, setTheme] = useState(settings.theme);
   const [view, setView] = useState<Settings['landingView'] | 'settings'>('dashboard');
   const [palette, setPalette] = useState(false);
+  const [draftLab, setDraftLab] = useState(false);
   useEffect(() => {
     const sync = () => setTheme(settings.theme);
     listeners.add(sync);
@@ -151,7 +153,14 @@ function Preview() {
     ['snippets', 'Open snippets'],
     ['contacts', 'Open contact notes'],
     ['settings', 'Open settings'],
-  ].map(([id, title]) => ({ id: id!, title: title!, run: () => setView(id as typeof view) }));
+  ].map(([id, title]) => ({
+    id: id!,
+    title: title!,
+    run: () => {
+      setDraftLab(false);
+      setView(id as typeof view);
+    },
+  }));
   return (
     <div className={`vynlo options-page theme-${theme === 'dark' ? 'dark' : 'light'}`}>
       <aside
@@ -184,9 +193,16 @@ function Preview() {
           </button>
         ))}
         <button onClick={() => setPalette(true)}>Open commands</button>
+        <button onClick={() => setDraftLab(!draftLab)}>
+          {draftLab ? 'Workspace' : 'Draft lab'}
+        </button>
       </aside>
       <ErrorBoundary>
-        <Workspace options initialView={view} onPalette={() => setPalette(true)} />
+        {draftLab ? (
+          <DraftLab />
+        ) : (
+          <Workspace options initialView={view} onPalette={() => setPalette(true)} />
+        )}
       </ErrorBoundary>
       {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}
     </div>

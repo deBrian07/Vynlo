@@ -42,7 +42,9 @@ describe('snippets workflow', () => {
     expect(document.querySelector('script')).toBeNull();
   });
   it('resolves user-provided variables before requesting plain-text insertion', () => {
-    const onInsert = vi.fn(()=>{expect(document.querySelector('dialog')?.open).toBe(false);});
+    const onInsert = vi.fn(() => {
+      expect(document.querySelector('dialog')?.open).toBe(false);
+    });
     render(<Snippets snippets={[snippet]} onSave={vi.fn()} onInsert={onInsert} canInsert />);
     fireEvent.click(screen.getByRole('button', { name: 'Insert snippet' }));
     fireEvent.change(screen.getByLabelText('first_name'), { target: { value: '<Alex>' } });

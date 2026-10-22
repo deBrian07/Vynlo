@@ -91,7 +91,7 @@ pnpm zip
 
 `pnpm check` runs formatting, ESLint, TypeScript, unit/integration tests and a production build. Vitest, React Testing Library and Playwright exercise the layers that can be tested without Google credentials.
 
-For an interactive design fixture with fictional data, run `pnpm preview:build`, then `pnpm preview` and open the printed local URL. It uses the real UI and storage service in a separate test database; it is not a Gmail compatibility test. Browser fixture testing is a separate command.
+For an interactive design fixture with fictional data, run `pnpm preview` and open the printed local URL. It uses the real UI and storage service in a separate test database; it is not a Gmail compatibility test. Browser fixture testing is a separate command.
 
 See [development](DEVELOPMENT.md), [architecture](ARCHITECTURE.md) and [contributing](../CONTRIBUTING.md). The source is [MIT-licensed](../LICENSE), and the repository is [deBrian07/Vynlo](https://github.com/deBrian07/Vynlo). A private support channel has not been configured; do not post personal email data in public issues.
 
@@ -104,3 +104,5 @@ The README banner is a marketing illustration, not a verified Gmail capture. Liv
 - Command palette
 - Snippet variables
 - Light and dark settings
+
+The live preview runs at `http://127.0.0.1:4173/` and updates when source changes. Keep its terminal open; press Ctrl+C to stop. To inspect a static production preview, run `pnpm preview:build` then `pnpm preview:static` instead. Both use port 4173, so stop one before starting the other. The fixture uses fictional data, not your Gmail mailbox.

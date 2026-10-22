@@ -36,6 +36,7 @@ After rebuilding, reload the extension and Gmail. Export your data before uninst
 
 | Command         | Purpose                                  |
 | --------------- | ---------------------------------------- |
+| `pnpm preview`  | Open the live UI preview on port 4173    |
 | `pnpm dev`      | Develop with WXT                         |
 | `pnpm check`    | Formatting, lint, types, tests and build |
 | `pnpm test:e2e` | Playwright fixture tests                 |

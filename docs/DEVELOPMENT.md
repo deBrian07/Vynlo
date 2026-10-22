@@ -51,4 +51,6 @@ If dependency installation is unavailable, report the exact failure. Running a t
 
 ## Interactive visual fixture
 
-Run `pnpm preview:build` then `pnpm preview` and open the printed localhost URL. The preview is explicitly labeled with fictional data and uses the real UI/background service with a separate database. The Draft lab uses the actual Gmail adapter against a synthetic contenteditable editor so you can verify plain-text insertion, focus restoration and native undo without Google credentials. Notifications and opening fictional conversations are test platform stubs; this preview does not validate live Gmail integration.
+Run `pnpm preview` and open the printed localhost URL. The preview is explicitly labeled with fictional data and uses the real UI/background service with a separate database. The Draft lab uses the actual Gmail adapter against a synthetic contenteditable editor so you can verify plain-text insertion, focus restoration and native undo without Google credentials. Notifications and opening fictional conversations are test platform stubs; this preview does not validate live Gmail integration.
+
+`pnpm preview` starts the local fixture directly from source at `http://127.0.0.1:4173/` with live updates. For a static fixture build, use `pnpm preview:build` followed by `pnpm preview:static`. Stop an existing preview with Ctrl+C before starting another on the same port.

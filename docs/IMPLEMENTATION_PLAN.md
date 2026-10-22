@@ -35,3 +35,15 @@ History lives in this repository. Do not publish a remote or submit the extensio
 ## Review and polish validation
 
 The review adds source-correlated opaque thread routes, safer native snippet insertion, inline workflow actions, a due queue, protected unsaved edits, isolated keyboard events, and refined light/dark screens. The latest executed checks and remaining browser/Gmail gates are recorded in [REVIEW.md](REVIEW.md). The local interactive design fixture and draft lab provide repeatable visual and native-editing checks without an account.
+
+## Local classification branch
+
+`feat/local-classification` starts directly from local main `e9244ed` in the original repository. Remote main verification is blocked by GitHub DNS. It deliberately does not merge branding, tracking or backup branches.
+
+1. Typed eight-category taxonomy, strict local decision-response validation, bounded loopback-only Ollama client. No model downloads initiated by the extension.
+2. Versioned account-scoped tag records in extension storage, backup compatibility, manual edits and removal; core tracking status is independent.
+3. Trusted service-worker routing, opt-in local inference and automatic classification of supported opened conversation subjects. No whole-mailbox scan, body storage, native Gmail label mutation or background polling.
+4. Guided settings and setup check, category browser/filter, current-conversation tagging and correction. Default off; automatic mode separately enabled; uncertain decisions marked for review.
+5. Synthetic decision fixtures/evaluation runner, failure/account-switch tests, build checks and documentation distinguishing mock inference from actual model evaluation.
+
+Acceptance: local tags persist without forcing follow-up tracking; records remain account-scoped; model failures cannot break Gmail/core actions; manual corrections survive automatic visits; all imported tags are validated and imports never silently enable inference.

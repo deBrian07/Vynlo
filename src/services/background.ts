@@ -312,7 +312,10 @@ export function createBackgroundHandler({
             throw new Error('Invalid conversation link.');
           await platform.openTab(row.url);
         } else if (message.type === 'options') await platform.openOptions();
-        else await apply(message);
+        else if (message.type === 'complete-onboarding') {
+          const current = await settings();
+          if (!current.onboarded) await platform.setSettings({ ...current, onboarded: true });
+        } else await apply(message);
         const records = await database.read();
         for (const r of records.reminders)
           if (r.state !== 'due') await platform.clearNotification(r.id).catch(() => undefined);

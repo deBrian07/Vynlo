@@ -234,6 +234,16 @@ describe('background persistence and isolation', () => {
       ),
     ).toBe(false);
   });
+  it('lets Gmail dismiss onboarding without replacing other settings', async () => {
+    await platform.setSettings({ ...DEFAULT_SETTINGS, theme: 'dark' });
+    expect((await service.handle({ type: 'complete-onboarding' }, gmail)).ok).toBe(true);
+    const saved = await snapshot();
+    expect(saved.settings.theme).toBe('dark');
+    expect(saved.settings.onboarded).toBe(true);
+    expect((await service.handle({ type: 'settings', settings: DEFAULT_SETTINGS }, gmail)).ok).toBe(
+      false,
+    );
+  });
   it('does not replace snippets that were already saved', async () => {
     await send({
       type: 'save-snippet',

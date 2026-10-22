@@ -257,7 +257,16 @@ export default function Workspace({
                     Track the conversations that matter, leave yourself a note and come back at the
                     right time. Everything stays in this browser. Reminders don’t check for replies.
                   </p>
-                  <button onClick={() => setWelcome(false)}>Got it</button>
+                  <button
+                    onClick={() =>
+                      act(async () => {
+                        await request({ type: 'complete-onboarding' });
+                        setWelcome(false);
+                      })
+                    }
+                  >
+                    Got it
+                  </button>
                   <button onClick={() => act(() => request({ type: 'options' }))}>
                     Personalize Vynlo
                   </button>

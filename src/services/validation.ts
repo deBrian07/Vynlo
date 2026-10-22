@@ -121,6 +121,7 @@ export function validRequest(v: unknown): v is Request {
     case 'export':
     case 'clear':
     case 'options':
+    case 'complete-onboarding':
       return true;
     case 'open':
       return isAccountId(v.accountId) && id(v.conversationId);

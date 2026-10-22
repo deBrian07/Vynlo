@@ -1,5 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import {
+  Search,
+  ArrowUp,
+  ArrowDown,
+  CornerDownLeft,
+  Command as CommandIcon,
+  ArrowUpRight,
+  Clock3,
+  FileText,
+  Inbox,
+  Settings2,
+  UsersRound,
+  CheckCheck,
+} from 'lucide-react';
 import { filterCommands, type Command } from './registry';
 
 export type { Command } from './registry';
@@ -30,6 +43,13 @@ export function CommandPalette({
   const filtered = filterCommands(commands, query);
   const currentIndex = Math.min(selected, Math.max(filtered.length - 1, 0));
   const current = filtered[currentIndex];
+  const icons = {
+    Workspace: CommandIcon,
+    Conversation: CheckCheck,
+    Writing: FileText,
+    Gmail: Inbox,
+    Help: UsersRound,
+  };
 
   useEffect(() => {
     mounted.current = true;
@@ -125,8 +145,14 @@ export function CommandPalette({
               setError('');
             }}
           />
-          <button ref={close} type="button" aria-label="Close command palette" onClick={onClose}>
-            <X size={18} aria-hidden="true" />
+          <button
+            ref={close}
+            className="palette-escape"
+            type="button"
+            aria-label="Close command palette"
+            onClick={onClose}
+          >
+            esc
           </button>
         </div>
         <div
@@ -137,24 +163,45 @@ export function CommandPalette({
           aria-busy={busy}
           ref={list}
         >
-          {filtered.map((command, index) => (
-            <div
-              key={command.id}
-              id={`${id}-option-${index}`}
-              role="option"
-              aria-selected={currentIndex === index}
-              aria-disabled={Boolean(command.disabledReason) || busy}
-              className={`palette-command ${currentIndex === index ? 'is-selected' : ''}`}
-              onMouseEnter={() => setSelected(index)}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => void execute(command)}
-            >
-              <span>{command.title}</span>
-              <span className="palette-command-meta">
-                {command.disabledReason ?? command.group}
-              </span>
-            </div>
-          ))}
+          {filtered.map((command, index) => {
+            const Icon =
+              command.id === 'reminder'
+                ? Clock3
+                : command.id === 'settings'
+                  ? Settings2
+                  : (icons[command.group as keyof typeof icons] ?? ArrowUpRight);
+            return (
+              <div
+                key={command.id}
+                id={`${id}-option-${index}`}
+                role="option"
+                aria-selected={currentIndex === index}
+                aria-disabled={Boolean(command.disabledReason) || busy}
+                className={`palette-command ${currentIndex === index ? 'is-selected' : ''}`}
+                onMouseEnter={() => setSelected(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => void execute(command)}
+              >
+                <span className="palette-command-icon" aria-hidden="true">
+                  <Icon size={17} />
+                </span>
+                <span className="palette-command-label">
+                  <span>{command.title}</span>
+                  <span className="palette-command-meta">
+                    {command.disabledReason ?? command.group}
+                  </span>
+                </span>
+                {command.shortcut && (
+                  <kbd className="palette-shortcut" aria-hidden="true">
+                    {command.shortcut}
+                  </kbd>
+                )}
+                {currentIndex === index && !command.disabledReason && (
+                  <CornerDownLeft size={14} className="palette-enter" aria-hidden="true" />
+                )}
+              </div>
+            );
+          })}
         </div>
         {!filtered.length && (
           <p className="palette-empty" role="status">
@@ -167,7 +214,30 @@ export function CommandPalette({
           </p>
         )}
         <footer className="palette-footer">
-          {busy ? 'Working…' : '↑ ↓ to select · Enter to run · Esc to close'}
+          <span className="palette-brand">
+            <CommandIcon size={12} aria-hidden="true" /> Vynlo
+          </span>
+          {busy ? (
+            <span role="status">Working…</span>
+          ) : (
+            <span className="palette-key-hints">
+              <span>
+                <kbd>
+                  <ArrowUp size={10} />
+                </kbd>
+                <kbd>
+                  <ArrowDown size={10} />
+                </kbd>{' '}
+                navigate
+              </span>
+              <span>
+                <kbd>
+                  <CornerDownLeft size={10} />
+                </kbd>{' '}
+                run
+              </span>
+            </span>
+          )}
         </footer>
       </section>
     </div>

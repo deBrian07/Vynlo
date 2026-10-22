@@ -3,6 +3,7 @@ export interface Command {
   title: string;
   keywords?: string[];
   group?: string;
+  shortcut?: string;
   disabledReason?: string;
   run: () => void | Promise<void>;
 }

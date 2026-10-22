@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Confirm } from '../../src/components/ui';
+import { Confirm, Modal } from '../../src/components/ui';
 
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
@@ -11,6 +11,17 @@ beforeEach(() => {
   });
 });
 describe('confirmations', () => {
+  it('focuses the first editable field when opening a form dialog', () => {
+    render(
+      <Modal title="Snippet variables" onClose={vi.fn()}>
+        <label>
+          Name
+          <input aria-label="Name" />
+        </label>
+      </Modal>,
+    );
+    expect(screen.getByLabelText('Name')).toHaveFocus();
+  });
   it('blocks repeated operations and cancellation during a pending save', async () => {
     let finish: () => void = () => {};
     const save = vi.fn(

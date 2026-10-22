@@ -25,6 +25,11 @@ export function Modal({
         ? (dialog.getRootNode() as ShadowRoot).activeElement
         : document.activeElement;
     dialog.showModal();
+    dialog
+      .querySelector<HTMLElement>(
+        'input:not([disabled]):not([type="file"]), textarea:not([disabled]), select:not([disabled])',
+      )
+      ?.focus();
     return () => {
       dialog.close();
       if (restoreFocus && previous instanceof HTMLElement && previous.isConnected) previous.focus();

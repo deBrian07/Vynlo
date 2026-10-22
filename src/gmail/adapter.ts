@@ -7,6 +7,7 @@ const EMAIL = /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[
 /** No network interception, page globals, message bodies or mailbox enumeration. */
 export class GmailAdapter {
   private listeners = new Set<(context: GmailContext) => void>();
+  private layoutListeners = new Set<() => void>();
   private observer?: MutationObserver;
   private timer?: number;
   private lastContext = '';
@@ -215,41 +216,57 @@ export class GmailAdapter {
       this.timer = undefined;
       const context = this.getContext();
       const serialized = JSON.stringify(context);
-      if (serialized === this.lastContext) return;
-      this.lastContext = serialized;
-      this.listeners.forEach((listener) => listener(context));
+      if (serialized !== this.lastContext) {
+        this.lastContext = serialized;
+        this.listeners.forEach((listener) => listener(context));
+      }
+      this.layoutListeners.forEach((listener) => listener());
     }, 80);
   };
+
+  private watch(): void {
+    if (this.observer) return;
+    this.observer = new MutationObserver(this.schedule);
+    this.observer.observe(this.doc.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: [
+        'data-legacy-thread-id',
+        'data-thread-perm-id',
+        'aria-label',
+        'aria-hidden',
+        'hidden',
+        'style',
+        'class',
+      ],
+    });
+    this.win.addEventListener('hashchange', this.schedule);
+    this.win.addEventListener('popstate', this.schedule);
+    this.doc.addEventListener('focusin', this.onFocus);
+    this.doc.addEventListener('selectionchange', this.onSelection);
+  }
 
   subscribe(listener: (context: GmailContext) => void): () => void {
     this.listeners.add(listener);
     const context = this.getContext();
     this.lastContext = JSON.stringify(context);
     listener(context);
-    if (!this.observer) {
-      this.observer = new MutationObserver(this.schedule);
-      this.observer.observe(this.doc.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: [
-          'data-legacy-thread-id',
-          'data-thread-perm-id',
-          'aria-label',
-          'aria-hidden',
-          'hidden',
-          'style',
-          'class',
-        ],
-      });
-      this.win.addEventListener('hashchange', this.schedule);
-      this.win.addEventListener('popstate', this.schedule);
-      this.doc.addEventListener('focusin', this.onFocus);
-      this.doc.addEventListener('selectionchange', this.onSelection);
-    }
+    this.watch();
     return () => {
       this.listeners.delete(listener);
-      if (!this.listeners.size) this.stop();
+      if (!this.listeners.size && !this.layoutListeners.size) this.stop();
+    };
+  }
+
+  /** Fires on Gmail layout changes even when account and thread identity stay the same. */
+  onLayout(listener: () => void): () => void {
+    this.layoutListeners.add(listener);
+    this.watch();
+    listener();
+    return () => {
+      this.layoutListeners.delete(listener);
+      if (!this.listeners.size && !this.layoutListeners.size) this.stop();
     };
   }
 
@@ -269,6 +286,7 @@ export class GmailAdapter {
   dispose(): void {
     this.stop();
     this.listeners.clear();
+    this.layoutListeners.clear();
     this.composer = undefined;
     this.caret = undefined;
   }

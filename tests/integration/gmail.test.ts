@@ -148,6 +148,33 @@ describe('Gmail observation lifecycle', () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(listener).toHaveBeenCalledTimes(count);
   });
+  it('keeps watching layout after identity updates have been deduped', async () => {
+    vi.useFakeTimers();
+    try {
+      const contextListener = vi.fn();
+      const layout = vi.fn();
+      const offContext = adapter.subscribe(contextListener);
+      const offLayout = adapter.onLayout(layout);
+      expect(layout).toHaveBeenCalledTimes(1);
+      const contextCalls = contextListener.mock.calls.length;
+      document.querySelector('[gh="mtb"]')!.classList.add('moved');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(layout.mock.calls.length).toBeGreaterThan(1);
+      expect(contextListener).toHaveBeenCalledTimes(contextCalls);
+      offContext();
+      const layoutCalls = layout.mock.calls.length;
+      document.body.append(document.createElement('i'));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(layout.mock.calls.length).toBeGreaterThan(layoutCalls);
+      offLayout();
+      const settled = layout.mock.calls.length;
+      document.body.append(document.createElement('b'));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(layout).toHaveBeenCalledTimes(settled);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('Gmail snippet insertion boundary', () => {

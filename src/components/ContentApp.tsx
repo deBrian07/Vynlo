@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Command, PanelsTopLeft } from 'lucide-react';
 import type { GmailAdapter } from '../gmail/adapter';
 import { getSnapshot, request } from '../services/client';
+import { conversationId } from '../services/validation';
 import {
   DEFAULT_SETTINGS,
   STATUS_LABELS,
@@ -9,11 +10,13 @@ import {
   type GmailContext,
   type Settings,
   type ShortcutAction,
+  type Status,
 } from '../types/model';
 import { matchShortcut, formatShortcut } from '../features/shortcuts/shortcuts';
 import { CommandPalette } from '../features/command-palette/CommandPalette';
 import { createCommandRegistry } from '../features/command-palette/registry';
 import { Loading, Modal } from './ui';
+import { ThreadControl, threadControlPosition } from '../features/conversations/ThreadControl';
 const Workspace = lazy(() => import('./Workspace'));
 
 export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
@@ -27,7 +30,59 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
   const [help, setHelp] = useState(false);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
+  const [trackedStatus, setTrackedStatus] = useState<Status | undefined>();
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
   useEffect(() => adapter.subscribe(setContext), [adapter]);
+  useEffect(() => {
+    const conversation = context.conversation;
+    if (!conversation) {
+      setTrackedStatus(undefined);
+      return;
+    }
+    let active = true;
+    const load = () => {
+      void getSnapshot(conversation.accountId)
+        .then((data) => {
+          if (!active) return;
+          const id = conversationId(conversation.accountId, conversation.threadId);
+          setTrackedStatus(data.conversations.find((row) => row.id === id)?.status);
+        })
+        .catch(() => {
+          if (active) setTrackedStatus(undefined);
+        });
+    };
+    load();
+    chrome.storage.onChanged.addListener(load);
+    return () => {
+      active = false;
+      chrome.storage.onChanged.removeListener(load);
+    };
+  }, [context.conversation]);
+  useEffect(() => {
+    if (!context.conversation) {
+      setAnchor(null);
+      return;
+    }
+    const place = () => {
+      const bar = adapter.findConversationToolbar();
+      const next = bar
+        ? threadControlPosition(bar.getBoundingClientRect(), window.innerWidth)
+        : null;
+      setAnchor((current) => {
+        if (!next) return current === null ? current : null;
+        if (current && current.top === next.top && current.left === next.left) return current;
+        return next;
+      });
+    };
+    const stop = adapter.onLayout(place);
+    window.addEventListener('resize', place);
+    document.addEventListener('scroll', place, true);
+    return () => {
+      stop();
+      window.removeEventListener('resize', place);
+      document.removeEventListener('scroll', place, true);
+    };
+  }, [adapter, context.conversation]);
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -152,6 +207,16 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
   if (!ready || !settings.enabled) return null;
   return (
     <div className={`vynlo theme-${settings.theme === 'system' ? context.theme : settings.theme}`}>
+      {!open && anchor && (
+        <ThreadControl
+          status={trackedStatus}
+          position={anchor}
+          onClick={() => {
+            show('dashboard');
+            setEdit((n) => n + 1);
+          }}
+        />
+      )}
       {!open && (
         <div className="gmail-launcher">
           <button

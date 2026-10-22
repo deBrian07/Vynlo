@@ -188,6 +188,10 @@ export class GmailAdapter {
     // Preserve selected draft content. Insert after the selection instead of replacing it.
     range.collapse(false);
     editor.focus();
+    if (this.doc.activeElement !== editor)
+      throw new Error(
+        'The Gmail draft could not receive focus. Close other dialogs, focus the draft and try again.',
+      );
     const selection = this.doc.getSelection();
     if (!selection) throw new Error('The draft cursor is unavailable.');
     selection.removeAllRanges();

@@ -7,12 +7,14 @@ export function Modal({
   onClose,
   wide = false,
   busy = false,
+  restoreFocus = true,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
   busy?: boolean;
+  restoreFocus?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -25,9 +27,9 @@ export function Modal({
     dialog.showModal();
     return () => {
       dialog.close();
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+      if (restoreFocus && previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
-  }, []);
+  }, [restoreFocus]);
   return (
     <dialog
       ref={ref}

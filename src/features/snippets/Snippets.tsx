@@ -4,6 +4,7 @@ import { Confirm, Empty, Modal } from '../../components/ui';
 import { getTemplateVariables, resolveTemplate } from './template';
 import type { Snippet } from '../../types/model';
 import type { Request } from '../../types/messages';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 
 export function Snippets({
   snippets,
@@ -21,7 +22,6 @@ export function Snippets({
   const [editing, setEditing] = useState<Snippet | 'new' | null>(null);
   const [remove, setRemove] = useState<Snippet | null>(null);
   const [insert, setInsert] = useState<Snippet | null>(null);
-  const [error, setError] = useState('');
   const categories = [...new Set(snippets.map((s) => s.category).filter(Boolean))].sort();
   const filtered = snippets.filter(
     (s) =>
@@ -68,11 +68,6 @@ export function Snippets({
           Save a follow-up, introduction or thank-you message. Use {'{{first_name}}'} for a value
           you’ll fill in before inserting.
         </Empty>
-      )}
-      {error && (
-        <p role="alert" className="error-box">
-          {error}
-        </p>
       )}
       {filtered.map((s) => (
         <article className="snippet-card" key={s.id}>
@@ -127,13 +122,10 @@ export function Snippets({
         <Confirm
           title="Delete snippet?"
           onClose={() => setRemove(null)}
-          onConfirm={() =>
-            void onSave({ type: 'delete-snippet', id: remove.id })
-              .then(() => setRemove(null))
-              .catch((e) =>
-                setError(e instanceof Error ? e.message : 'Snippet could not be deleted.'),
-              )
-          }
+          onConfirm={async () => {
+            await onSave({ type: 'delete-snippet', id: remove.id });
+            setRemove(null);
+          }}
         >
           “{remove.title}” will be removed from this browser. Export a backup first if you want to
           keep it.
@@ -167,95 +159,105 @@ function SnippetEditor({
   const [category, setCategory] = useState(snippet?.category ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const close = () => {
-    if (
-      (title !== (snippet?.title ?? '') ||
-        content !== (snippet?.content ?? '') ||
-        category !== (snippet?.category ?? '')) &&
-      !window.confirm('Discard unsaved snippet changes?')
-    )
-      return;
-    onClose();
-  };
+  const { requestClose: close, confirmation } = useUnsavedChanges(
+    title !== (snippet?.title ?? '') ||
+      content !== (snippet?.content ?? '') ||
+      category !== (snippet?.category ?? ''),
+    onClose,
+    busy,
+  );
   return (
-    <Modal title={snippet ? 'Edit snippet' : 'New snippet'} onClose={close}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          try {
-            getTemplateVariables(content);
-          } catch (e) {
-            setError(e instanceof Error ? e.message : 'Check template variables.');
-            return;
-          }
-          setBusy(true);
-          void onSave({
-            type: 'save-snippet',
-            snippet: {
-              ...(snippet ? { id: snippet.id } : {}),
-              title: title.trim(),
-              content,
-              category: category.trim(),
-            },
-          })
-            .then(onClose)
-            .catch((e) => setError(e instanceof Error ? e.message : 'Snippet could not be saved.'))
-            .finally(() => setBusy(false));
-        }}
-      >
-        <div className="form-grid">
-          <label className="field">
-            <span>Snippet name</span>
-            <input
-              aria-label="Snippet name"
-              required
-              maxLength={200}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Category</span>
-            <input
-              aria-label="Category"
-              maxLength={100}
-              placeholder="e.g. Follow-ups"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Snippet content</span>
-            <textarea
-              aria-label="Snippet content"
-              required
-              maxLength={100000}
-              rows={7}
-              placeholder={'Hi {{first_name}},\n\nJust following up on our conversation.'}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
-            <small>
-              Plain text only. Variables such as {'{{first_name}}'} are filled in by you before
-              insertion.
-            </small>
-          </label>
-          {error && (
-            <p role="alert" className="error-box">
-              {error}
-            </p>
-          )}
-        </div>
-        <footer className="form-actions">
-          <button type="button" onClick={close} disabled={busy}>
-            Cancel
-          </button>
-          <button className="primary" disabled={busy}>
-            {busy ? 'Saving…' : 'Save snippet'}
-          </button>
-        </footer>
-      </form>
-    </Modal>
+    <>
+      <Modal title={snippet ? 'Edit snippet' : 'New snippet'} onClose={close} busy={busy}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (busy) return;
+            if (!title.trim() || !content.trim()) {
+              setError('Add a snippet name and some text before saving.');
+              return;
+            }
+            try {
+              getTemplateVariables(content);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Check template variables.');
+              return;
+            }
+            setBusy(true);
+            void onSave({
+              type: 'save-snippet',
+              snippet: {
+                ...(snippet ? { id: snippet.id } : {}),
+                title: title.trim(),
+                content,
+                category: category.trim(),
+              },
+            })
+              .then(onClose)
+              .catch((e) =>
+                setError(e instanceof Error ? e.message : 'Snippet could not be saved.'),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          <div className="form-grid">
+            <label className="field">
+              <span>Snippet name</span>
+              <input
+                disabled={busy}
+                aria-label="Snippet name"
+                required
+                maxLength={200}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Category</span>
+              <input
+                disabled={busy}
+                aria-label="Category"
+                maxLength={100}
+                placeholder="e.g. Follow-ups"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Snippet content</span>
+              <textarea
+                disabled={busy}
+                aria-label="Snippet content"
+                required
+                maxLength={100000}
+                rows={7}
+                placeholder={'Hi {{first_name}},\n\nJust following up on our conversation.'}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+              />
+              <small>
+                Plain text only. Variables such as {'{{first_name}}'} are filled in by you before
+                insertion.
+              </small>
+            </label>
+            {error && (
+              <p role="alert" className="error-box">
+                {error}
+              </p>
+            )}
+          </div>
+          <footer className="form-actions">
+            <button type="button" onClick={close} disabled={busy}>
+              Cancel
+            </button>
+            <button className="primary" disabled={busy}>
+              {busy ? 'Saving…' : 'Save snippet'}
+            </button>
+          </footer>
+        </form>
+      </Modal>
+      {confirmation}
+    </>
   );
 }
 function InsertSnippet({
@@ -269,6 +271,10 @@ function InsertSnippet({
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  const { requestClose, confirmation } = useUnsavedChanges(
+    Object.values(values).some((v) => v.length > 0),
+    onClose,
+  );
   let variables: string[] = [];
   try {
     variables = getTemplateVariables(snippet.content);
@@ -276,47 +282,67 @@ function InsertSnippet({
     /* A malformed imported template gets an explicit resolution error on submit. */
   }
   return (
-    <Modal title={`Insert ${snippet.title}`} onClose={onClose}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          try {
-            onInsert(resolveTemplate(snippet.content, values));
-          } catch (e) {
-            setError(e instanceof Error ? e.message : 'The draft changed. Focus it and try again.');
-          }
-        }}
-      >
-        <div className="form-grid">
-          {variables.map((name) => (
-            <label className="field" key={name}>
-              <span>{name.replaceAll('_', ' ')}</span>
-              <input
-                aria-label={name}
-                required
-                maxLength={1000}
-                value={values[name] ?? ''}
-                onChange={(e) => setValues({ ...values, [name]: e.target.value })}
-              />
-            </label>
-          ))}
-          <p className="muted">
-            Inserts plain text at the captured cursor. Existing draft content is preserved. Nothing
-            is sent.
-          </p>
-          {error && (
-            <p className="error-box" role="alert">
-              {error}
+    <>
+      <Modal title={`Insert ${snippet.title}`} onClose={requestClose} restoreFocus={false}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const dialog = e.currentTarget.closest<HTMLDialogElement>('dialog');
+            try {
+              const text = resolveTemplate(snippet.content, values);
+              // A modal makes Gmail's composer inert. Release it before requesting native focus.
+              dialog?.close();
+              onInsert(text);
+            } catch (e) {
+              if (dialog && !dialog.open) dialog.showModal();
+              setError(
+                e instanceof Error ? e.message : 'The draft changed. Focus it and try again.',
+              );
+            }
+          }}
+        >
+          <div className="form-grid">
+            {variables.map((name) => (
+              <label className="field" key={name}>
+                <span>{name.replaceAll('_', ' ')}</span>
+                <input
+                  aria-label={name}
+                  required
+                  maxLength={1000}
+                  value={values[name] ?? ''}
+                  onChange={(e) => setValues({ ...values, [name]: e.target.value })}
+                />
+              </label>
+            ))}
+            <div className="snippet-resolved-preview">
+              <span className="eyebrow">PREVIEW</span>
+              <p>
+                {snippet.content.replace(
+                  /\{\{([^{}]*)\}\}/g,
+                  (_match, raw: string) =>
+                    values[raw.trim()] || `[${raw.trim().replaceAll('_', ' ')}]`,
+                )}
+              </p>
+            </div>
+            <p className="muted">
+              Inserts plain text at the captured cursor. Existing draft content is preserved.
+              Nothing is sent.
             </p>
-          )}
-        </div>
-        <footer className="form-actions">
-          <button type="button" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="primary">Insert into draft</button>
-        </footer>
-      </form>
-    </Modal>
+            {error && (
+              <p className="error-box" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+          <footer className="form-actions">
+            <button type="button" onClick={requestClose}>
+              Cancel
+            </button>
+            <button className="primary">Insert into draft</button>
+          </footer>
+        </form>
+      </Modal>
+      {confirmation}
+    </>
   );
 }

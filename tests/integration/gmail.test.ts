@@ -213,6 +213,20 @@ describe('Gmail snippet insertion boundary', () => {
     Object.defineProperty(document, 'execCommand', { value: command, configurable: true });
     return command;
   }
+  it('never inserts into another focused element when the draft is blocked by a dialog', () => {
+    adapter.captureComposer();
+    const field = document.createElement('input');
+    document.body.append(field);
+    field.focus();
+    vi.spyOn(composer(), 'focus').mockImplementation(() => undefined);
+    const command = editingCommand();
+    expect(() => adapter.insertIntoComposer('Keep this out of the variable field')).toThrow(
+      'could not receive focus',
+    );
+    expect(command).not.toHaveBeenCalled();
+    expect(field.value).toBe('');
+    expect(composer().textContent).toBe('Existing draft');
+  });
   it('inserts literal text after the saved selection without removing draft content', () => {
     const editor = composer();
     editor.focus();

@@ -38,3 +38,7 @@ Computed sRGB contrast ratios from the source tokens (not a blanket accessibilit
 | Input boundary / page          |  3.10:1 |  3.68:1 |
 
 The full 103-test suite, lint, strict types, formatting and production packaging pass after the theme changes. Original Chrome preview had been visually checked for the mark; this theme pass could not complete native browser review: Chrome had no available window, automatic approval review rejected selecting Arc because its existing window could expose unrelated private tabs, and the isolated browser was unavailable. Live visual and Gmail checks remain release gates. No email data or remote services were used for these styling changes.
+
+## Dashboard refinement
+
+The full-page view uses a smaller brand lockup, understated account/status selectors, a simple active navigation tint and grouped summary statistics. Duplicate default result counts remain available to screen readers; search and filtered views show them visibly. Row dividers appear within groups, and reminder actions use text buttons. Keyboard focus indicators and all actions remain available. The preview theme control no longer adds a framed block to the sidebar.

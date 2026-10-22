@@ -1,20 +1,21 @@
 # Implementation plan
 
-## Corrected brand kit branch
+## Data protection
 
-`feat/brand-kit` starts directly from main `e9244ed`, independently of backup and open-tracking branches.
+The corrected brand kit is already on main. This branch adds optional encrypted backups on top of it. It does not include the separate open-tracking branch.
 
-- [x] Preserve the complete supplied corrected kit under `assets/brand`.
-- [x] Replace Chrome icons with supplied exact-size navy/mint exports.
-- [x] Adapt inline local vector mark and outlined wordmark in workspace, popup and Gmail launcher, with light/dark and accessible labels.
-- [x] Extend navy/mint/teal tokens across light/dark controls, navigation, semantic states and palette; validate contrast.
-- [x] Shorten README, use supplied theme-aware banners with truthful illustration labeling, move detailed instructions to `docs/USAGE.md`.
-- [x] Validate formatting, lint, types, 103 tests, build, preview build, ZIP and asset/reference checks. Installed-extension visuals/live Gmail remain release gates.
-- [x] Prepare independent branch history and package. Publication requires reachable GitHub; current terminal DNS is blocked.
+1. Versioned encrypted backup codec: AES-GCM with independent vault authentication and encryption keys; passphrase-protected local files; recovery-file validation. Test tampering, wrong keys, malformed input and key separation.
+2. Independent private Cloudflare R2 service: bounded encrypted envelopes, hashed capabilities, conditional writes, no plaintext records. Test authorization, concurrent writes and failures.
+3. Extension-owned backup controller: off by default, explicit host grants, encrypted local export, preview/confirm restore, persisted recovery journal, queued automatic snapshots, restart recovery and conflict handling.
+4. Guided settings: local file download/restore; optional cloud setup, recovery-file save, enable/pause/status and restore after reinstall. Never require a cloud connection for local backups.
+5. Preserve optional open-tracking records/capabilities when the installed profile contains that separate module; do not grant its host permission during restore.
+6. Guided operator deployment, privacy/security documentation, production package and complete checks. Distinguish local tests from live Cloudflare/Chrome validation; do not deploy or merge without owner action.
 
-See [BRANDING.md](BRANDING.md) for asset mapping and merge notes.
+Acceptance: a clean install can restore core records/settings/reminders from a validated local file or encrypted cloud vault using an external recovery file. Default installation makes no backup network requests. Failed backups/restores never silently erase existing data; stale cloud writes do not overwrite newer snapshots.
 
 Vynlo enhances Gmail locally. The initial release includes P0 and P1; automatic reply detection and all other P2 work remain out of scope.
+
+Implementation tasks 1–6 above are complete in this branch. The executed checks and explicit live-browser/deployment release gates are recorded in [BACKUP_VALIDATION.md](BACKUP_VALIDATION.md). Automatic backups remain optional and disabled on a fresh install.
 
 ## Milestones and gates
 
@@ -33,7 +34,7 @@ Vynlo enhances Gmail locally. The initial release includes P0 and P1; automatic 
 
 - One service worker owns IndexedDB; Gmail content scripts communicate through validated messages. No Gmail-origin database.
 - Stable email namespaces, not `/u/0` account slots. No account-dependent writes when identification fails.
-- No API calls, network interception, remote scripts, analytics or automatic sending.
+- No Gmail API calls, network interception, remote scripts, analytics or automatic sending. Optional encrypted backups upload only after the user connects a service and turns them on.
 - Durable reminder records are authoritative. Alarm state is rebuilt on worker activation.
 - Imported backups merge validated records rather than silently replacing the database.
 - Shadow DOM isolates the Gmail UI. Adapter selectors stay outside React.

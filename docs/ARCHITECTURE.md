@@ -45,4 +45,12 @@ Times are absolute epoch milliseconds. Calendar-day presets retain local wall-cl
 
 ## Extending the product
 
-Add commands through the typed command registry. Add provider behavior through the adapter boundary. New storage fields require validation, migration/import consideration and tests. Optional Gmail API integration would require a separate permission/privacy design; no dormant OAuth, network interception or backend is included now.
+Add commands through the typed command registry. Add provider behavior through the adapter boundary. New storage fields require validation, migration/import consideration and tests. Optional Gmail API integration would require a separate permission/privacy design; no dormant OAuth or network interception is included. The explicitly optional backup service has its own boundary.
+
+## Data protection
+
+`src/features/backups` wraps the existing version-one core export/import service without changing its databases. A separate validated version-one IndexedDB store contains cloud configuration, generated recovery material, restore previews and a pending restore journal. Content scripts never receive these records. The independent Cloudflare Worker stores opaque authenticated ciphertext in private R2. Cloud backup is disabled by default; exact-origin host access is optional.
+
+User changes queue an upload deadline anchored to the first dirty change. A daily fallback is anchored to the last confirmed upload, so service-worker restarts do not postpone it. Alarms are reconstructed on startup/update. Uploads capture core records and installed tracking addons, encrypt locally and use the last known ETag. Failed uploads retain dirty state; conflicts pause the vault. The service does not provide continuous multi-device sync or version history.
+
+Restores decrypt/validate first, return a counts-only preview and require explicit confirmation. Core import merges missing records and journals preferences. Tracking addon restoration merges absent capability records, rejecting identity/capability conflicts; current tracking connection settings win. A separate pending restore journal enables idempotent retry across these databases. Automatic upload remains paused until recovery finishes and the user enables it again.

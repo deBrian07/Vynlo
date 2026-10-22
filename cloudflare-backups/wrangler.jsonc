@@ -1,0 +1,16 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "vynlo-backups",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-22",
+  "workers_dev": true,
+  "observability": { "enabled": false },
+  "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "vynlo-backups" }],
+  "ratelimits": [
+    {
+      "name": "API_LIMITER",
+      "namespace_id": "2001",
+      "simple": { "limit": 120, "period": 60 },
+    },
+  ],
+}

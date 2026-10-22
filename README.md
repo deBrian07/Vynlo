@@ -14,6 +14,7 @@ A free, open-source productivity layer for Gmail. Track conversations, remember 
 - Find actions through a command palette and configurable shortcuts.
 - Insert snippets with template variables; keep contact notes and tags.
 - Choose light or dark mode and export your workspace.
+- Download a password-encrypted backup, or turn on automatic encrypted cloud backups. Both stay off until you choose them.
 
 ## Install locally
 
@@ -34,19 +35,22 @@ Building updates both `release/Vynlo` and `.output/chrome-mv3`. If Vynlo is alre
 
 ## Development
 
-| Command         | Purpose                                  |
-| --------------- | ---------------------------------------- |
-| `pnpm preview`  | Open the live UI preview on port 4173    |
-| `pnpm dev`      | Develop with WXT                         |
-| `pnpm check`    | Formatting, lint, types, tests and build |
-| `pnpm test:e2e` | Playwright fixture tests                 |
-| `pnpm zip`      | Package the extension in `.output/`      |
+| Command              | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| `pnpm preview`       | Open the live UI preview on port 4173    |
+| `pnpm dev`           | Develop with WXT                         |
+| `pnpm check`         | Formatting, lint, types, tests and build |
+| `pnpm test:e2e`      | Playwright fixture tests                 |
+| `pnpm zip`           | Package the extension in `.output/`      |
+| `pnpm backups:setup` | Guide optional Cloudflare backup setup   |
 
 See [development setup](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md) and [contributing](CONTRIBUTING.md). Vynlo uses TypeScript, React, WXT/Vite, Tailwind CSS, Lucide and Zustand.
 
 ## Privacy and compatibility
 
-Your records stay in your browser profile. There is no Vynlo account, server, subscription or AI service. Vynlo never sends email, reads your entire mailbox or automatically detects replies. Local storage and JSON exports are not encrypted. Read the [privacy policy draft](docs/PRIVACY.md) and [security model](docs/SECURITY.md).
+Your records stay in your browser profile. There is no Vynlo account, subscription or AI service. Conversation tracking, reminders, snippets and contact notes need no server. Vynlo never sends email, reads your entire mailbox or automatically detects replies.
+
+Optional backups can save a password-encrypted file on your computer, or send an encrypted snapshot to a Cloudflare Worker you connect. The encryption key is not uploaded. Local browser data and older JSON exports are not encrypted by Vynlo. New recovery files use authenticated AES-256-GCM. See [data protection](docs/BACKUPS.md), the [privacy policy draft](docs/PRIVACY.md) and the [security model](docs/SECURITY.md).
 
 This release is a **compatibility preview**. Tracking works only when Gmail's visible conversation identity agrees with its route; unsupported or ambiguous views disable tracking. Fixture tests do not establish live Gmail compatibility. See [supported Gmail behavior](docs/GMAIL_COMPATIBILITY.md), [known limitations](docs/LIMITATIONS.md) and the [roadmap](docs/ROADMAP.md).
 

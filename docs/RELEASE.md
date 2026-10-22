@@ -31,7 +31,7 @@ CI validates source and creates a build artifact. The workflow does not publish 
 - [ ] Verify the supported account/thread path is practical for intended users; do not ship a misleading primary tracking promise.
 - [ ] Test pending reminders after worker/browser restart, due dashboard recovery, notification denial, snooze and resolve.
 - [ ] Review import/export, account isolation, clearing data and corrupted-input behavior.
-- [ ] Inspect the generated manifest: only `storage`, `alarms`, `notifications`; Gmail-only content matches; no development server access or remote code.
+- [ ] Inspect the generated manifest: only `storage`, `alarms`, `notifications`; Gmail-only content matches; optional exact-origin backup Worker access only after consent; no development server access or remote code.
 - [ ] Inspect ZIP structure and load that exact artifact in a fresh Chrome profile.
 - [ ] Review dependencies and bundled code for unapproved network use and secret/user-data leakage.
 - [ ] Record bundle sizes and any performance measurements without claiming unmeasured improvements.
@@ -53,7 +53,7 @@ CI validates source and creates a build artifact. The workflow does not publish 
 
 Vynlo adds a local productivity panel to Gmail. Mark a supported conversation Needs Reply, Waiting, Follow Up or Resolved, then review your next steps in one dashboard. Set a reminder, save a contact note or insert a snippet you wrote into your draft.
 
-Your Vynlo records stay in your browser profile. There is no Vynlo account, subscription, cloud service, AI provider or advertising. Data is exportable as JSON. Local storage and exported files are not encrypted by Vynlo.
+Your workspace stays in your browser profile by default. There is no Vynlo account, subscription, AI provider or advertising. Optional cloud backups encrypt snapshots locally before upload to your configured Cloudflare service. Data protection provides encrypted recovery files; legacy JSON exports and browser storage are not encrypted.
 
 Tracking is manual. Vynlo does not detect replies or send email. Desktop reminders depend on Chrome and operating-system availability; due items stay visible in the dashboard. The compatibility preview supports corroborated legacy routes and a restricted modern opaque thread format. Ambiguous, draft and unsupported routes disable tracking. Check the published compatibility guide before installation.
 
@@ -61,14 +61,15 @@ Publish this draft only after filling the support/privacy links and validating t
 
 ## Permission explanations and data disclosure
 
-| Permission/access           | Store explanation                                                                                                      |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `storage`                   | Save local preferences and coordinate extension views. Structured user records use extension-owned IndexedDB.          |
-| `alarms`                    | Wake the extension to process scheduled follow-up reminders and recover overdue work.                                  |
-| `notifications`             | Show optional generic desktop reminders requested by the user.                                                         |
-| Gmail content-script access | Display controls in Gmail, identify the supported current account/thread and insert requested plain text into a draft. |
+| Permission/access                  | Store explanation                                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `storage`                          | Save local preferences and coordinate extension views. Structured user records use extension-owned IndexedDB.            |
+| `alarms`                           | Wake the extension to process scheduled follow-up reminders and recover overdue work.                                    |
+| `notifications`                    | Show optional generic desktop reminders requested by the user.                                                           |
+| Optional `https://*.workers.dev/*` | Contact only the exact backup service origin explicitly approved during setup or recovery. No access granted by default. |
+| Gmail content-script access        | Display controls in Gmail, identify the supported current account/thread and insert requested plain text into a draft.   |
 
-The extension handles account/contact email addresses, minimal communication references, user-authored notes/snippets, dates and settings. It does not transmit these to Vynlo or an analytics provider. Do not describe the product as handling no user data merely because processing is local. The current implementation has no browsing-history collection, credentials, OAuth tokens, mailbox body archive, tracking pixels, remote code or automatic sending.
+The extension handles account/contact email addresses, minimal communication references, user-authored notes/snippets, dates and settings. It transmits no plaintext workspace data to a server or analytics provider. Optional backups send ciphertext to the user-selected service. Do not describe the product as handling no user data merely because processing is local. The current implementation has no browsing-history collection, Google credentials, OAuth tokens, mailbox body archive, tracking pixels, remote code or automatic sending.
 
 The publisher must review the dashboard's current disclosure categories and answer them against the submitted build. The [User Data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq) treats local collection/use as data handling; the [Limited Use policy](https://developer.chrome.com/docs/webstore/program-policies/limited-use) constrains purpose and transfer. Review the [privacy policy draft](PRIVACY.md) and publish a stable policy URL. These checks do not constitute store approval.
 
@@ -86,3 +87,7 @@ The publisher must review the dashboard's current disclosure categories and answ
 ## Notification behavior to disclose
 
 Chrome alarms may be delayed and do not wake a sleeping device. Vynlo reconstructs schedules when its service worker resumes; it cannot notify while Chrome cannot run. See the [Chrome alarms documentation](https://developer.chrome.com/docs/extensions/reference/api/alarms). A persisted notification attempt can be missed if the worker crashes immediately before dispatch. The due record remains available, and snoozing schedules another attempt.
+
+## Backup acceptance before release
+
+Run crypto, R2 protocol, restore-journal, addon recovery, upgrade and settings tests. In a separate profile, save a local encrypted file, uninstall/reinstall, restore and compare all account-scoped records/settings/reminders. Deploy the optional Worker only with authorization; verify its actual R2 binding, quotas, permissions, automatic alarm recovery, restore using an external recovery file, interrupted upload behavior and ETag conflicts. Complete network inspection confirming no default requests and no plaintext workspace/recovery key transmission. Current automated results do not close these live deployment/browser gates.

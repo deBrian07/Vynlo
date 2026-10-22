@@ -47,7 +47,25 @@ Object.defineProperty(window, 'chrome', {
   configurable: true,
   value: {
     runtime: {
-      sendMessage: (message: Request) => service.handle(message, sender),
+      sendMessage: (message: Request | { type: string }) =>
+        message.type === 'backup-status'
+          ? Promise.resolve({
+              ok: true,
+              data: {
+                automatic: false,
+                configured: false,
+                pending: false,
+                conflict: false,
+                recoveryPending: false,
+              },
+            })
+          : message.type.startsWith('backup-')
+            ? Promise.resolve({
+                ok: false,
+                error:
+                  'Use the installed extension for backup actions. This design preview never uploads data.',
+              })
+            : service.handle(message, sender),
       getManifest: () => ({ version: '0.1.0' }),
     },
     storage: {

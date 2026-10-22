@@ -19,7 +19,7 @@ Vynlo enhances Gmail locally. The initial release includes P0 and P1; automatic 
 
 - One service worker owns IndexedDB; Gmail content scripts communicate through validated messages. No Gmail-origin database.
 - Stable email namespaces, not `/u/0` account slots. No account-dependent writes when identification fails.
-- No API calls, network interception, remote scripts, analytics or automatic sending.
+- No Gmail API calls, network interception, remote scripts, analytics or automatic sending. Optional Cloudflare open tracking is explicitly authorized and isolated from core data.
 - Durable reminder records are authoritative. Alarm state is rebuilt on worker activation.
 - Imported backups merge validated records rather than silently replacing the database.
 - Shadow DOM isolates the Gmail UI. Adapter selectors stay outside React.
@@ -36,4 +36,15 @@ History lives in this repository. Do not publish a remote or submit the extensio
 
 The review adds source-correlated opaque thread routes, safer native snippet insertion, inline workflow actions, a due queue, protected unsaved edits, isolated keyboard events, and refined light/dark screens. The latest executed checks and remaining browser/Gmail gates are recorded in [REVIEW.md](REVIEW.md). The local interactive design fixture and draft lab provide repeatable visual and native-editing checks without an account.
 
-The preview toolbar now lives inside the workspace sidebar. `pnpm release` prepares a visible ready-to-load `release/Vynlo` folder and an offline three-step setup guide. End users of that prepared build need only Chrome; source-only checkouts still require the developer build. The full check suite, package integrity checks and native Chrome preview/guide inspection passed after these changes. Creating the requested commits is currently blocked by this session's read-only `.git` permissions.
+The preview toolbar now lives inside the workspace sidebar. `pnpm release` prepares a visible ready-to-load `release/Vynlo` folder and an offline three-step setup guide. End users of that prepared build need only Chrome; source-only checkouts still require the developer build. The full check suite, package integrity checks and native Chrome preview/guide inspection passed after these changes. The original checkout has read-only Git metadata in this session; a separate checkout holds the requested feature branch and commits.
+
+## Optional open-tracking extension
+
+| Task                  | Acceptance                                                                                                                     | Status                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| Worker and D1         | Hashed capabilities, prepared SQL, rate limits, paused records, activation, expiry and deletion                                | Implemented; SQLite-backed tests pass                             |
+| Extension service     | Exact optional host grant, bounded responses, sender checks, separate credential store, restart recovery and account isolation | Implemented; local lifecycle tests pass                           |
+| Draft integration     | Explicit insertion, immutable composer/account binding, no sending or send inference                                           | Implemented; fixture regressions pass; live Gmail remains a gate  |
+| Activity and settings | Connection file import, consent, activation, refresh, revoke and failure states                                                | Implemented; component tests and native Chrome fixture inspection |
+| Operator setup        | One guided command, reusable resources, private connection file, create/activate/read/delete smoke check                       | Implemented and tested with mocks; live deployment not run        |
+| Release               | Build and ZIP; privacy disclosures; installation and live-validation checklist                                                 | Prepared; live Cloudflare/Gmail and browser E2E gates remain      |

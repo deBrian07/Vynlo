@@ -1,6 +1,6 @@
-import { BrandMark, BrandName } from './Brand';
+import { BrandMark } from './Brand';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Command, PanelsTopLeft } from 'lucide-react';
+import { Command, BookmarkPlus } from 'lucide-react';
 import type { GmailAdapter } from '../gmail/adapter';
 import { getSnapshot, request } from '../services/client';
 import { conversationId } from '../services/validation';
@@ -270,12 +270,11 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
           <button
             className="launcher-button"
             aria-label="Open Vynlo"
+            title="Open Vynlo"
             onPointerDown={() => adapter.captureComposer()}
             onClick={() => show()}
           >
             <BrandMark className="mini-mark" />
-            <BrandName />
-            <PanelsTopLeft size={16} />
           </button>
           {context.conversation && (
             <button
@@ -285,18 +284,19 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
                 setEdit((n) => n + 1);
               }}
               aria-label="Track conversation"
+              title="Track conversation"
             >
-              Track conversation
+              <BookmarkPlus size={14} />
             </button>
           )}
           <button
             className="launcher-command"
             aria-label="Open command palette"
-            title={formatShortcut(settings.shortcuts.palette)}
+            title={`Commands (${formatShortcut(settings.shortcuts.palette)})`}
             onPointerDown={() => adapter.captureComposer()}
             onClick={() => setPalette(true)}
           >
-            <Command size={16} />
+            <Command size={14} />
           </button>
         </div>
       )}

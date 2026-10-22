@@ -4,7 +4,7 @@ The first release keeps its data local and focuses on manual conversation tracki
 
 ## Before broad release
 
-1. Validate the identity adapter and saved account links in real Gmail sessions. The opaque-route restriction is the largest adoption blocker. Broaden support only with a dependable relationship between account, route and visible thread; preserve fail-closed behavior.
+1. Validate the identity adapter and saved account links in real Gmail sessions. The restricted opaque-route implementation still needs live Gmail validation. Broaden support only with a dependable relationship between account, route and visible thread; preserve fail-closed behavior.
 2. Complete draft insertion/autosave/undo checks, multiple-account tests and browser restart notification checks on supported Chrome versions.
 3. Test keyboard and screen-reader behavior in real Gmail, including dark/image themes and multiple open composers.
 4. Publish the actual repository and privacy/support URLs, capture synthetic screenshots and finish the store disclosure review.

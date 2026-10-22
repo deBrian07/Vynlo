@@ -30,4 +30,8 @@ Run focused tests while implementing, then formatting, ESLint, TypeScript, compl
 
 ## Workspace constraint
 
-The execution environment protects the workspace `.git` path and rejected initialization. Local commits are maintained in `/private/tmp/vynlo-history.git` with this workspace as its work tree. A portable bundle will be delivered with the release so history can be restored without losing work. No remote publication is authorized.
+History lives in this repository. Do not publish a remote or submit the extension without an explicit request. Real authenticated Gmail testing is still a separate release gate.
+
+## Review and polish validation
+
+The review adds source-correlated opaque thread routes, safer native snippet insertion, inline workflow actions, a due queue, protected unsaved edits, isolated keyboard events, and refined light/dark screens. The latest executed checks and remaining browser/Gmail gates are recorded in [REVIEW.md](REVIEW.md). The local interactive design fixture and draft lab provide repeatable visual and native-editing checks without an account.

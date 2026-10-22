@@ -2,9 +2,9 @@
 
 ## Gmail compatibility
 
-The first adapter supports a narrow, corroborated identity path: a visible account control, one supported conversation heading with legacy/permanent thread attributes and a route ending in the same 16-character hexadecimal legacy ID. Most current opaque Gmail URLs are unsupported. Reading panes, ambiguous headings and unsupported account-control languages disable tracking.
+The first adapter supports a narrow, corroborated identity path: a visible account control, one supported conversation heading with legacy/permanent thread attributes and a corroborated route. Legacy hexadecimal routes are supported, as are canonical opaque `f` tokens whose decoded permanent and legacy IDs both match the visible heading. Unknown encodings and draft tokens remain unsupported. Reading panes, ambiguous headings and unsupported account-control languages disable tracking.
 
-Saved references use an account email query rather than a numeric account slot. Their behavior across consumer accounts, Workspace accounts and changed sign-in order still needs live validation. No guessed opaque-token conversion, page-global inspection or network interception fills that gap.
+Saved references use an account email query rather than a numeric account slot. Their behavior across consumer accounts, Workspace accounts and changed sign-in order still needs live validation. Opaque decoding is restricted to a source-grounded, independently corroborated format. There is no page-global inspection or network interception.
 
 Fixtures cover expected and failed states. They do not establish live Gmail compatibility, Gmail draft autosave reliability or compatibility with every deployed layout. The remaining live checklist is in [GMAIL_COMPATIBILITY.md](GMAIL_COMPATIBILITY.md). Public release should wait for those checks and a usable supported navigation path.
 
@@ -29,7 +29,7 @@ Shortcuts do not run while typing, including in compose editors. Browser, OS and
 
 Data belongs to one extension installation in one browser profile. There is no cross-device sync or encryption. Uninstalling or changing the extension ID can make records unavailable; export first. Backups merge missing records, keep existing local IDs and replace settings. Import is not an exact rollback of local records.
 
-The current storage service reads record collections into memory for snapshots and mutations. It is designed for a personal tracker, not a mailbox archive. Imports are limited to 20,000 records per collection and field lengths are validated, but that limit is not a measured performance guarantee. Large workspaces need targeted indexed queries and profiling before stronger scalability claims.
+Account-scoped snapshots use IndexedDB account indexes. Mutations and scheduler reconciliation still validate full record collections in memory. It is designed for a personal tracker, not a mailbox archive. Imports are limited to 20,000 records per collection and field lengths are validated, but that limit is not a measured performance guarantee. Large workspaces need targeted indexed queries and profiling before stronger scalability claims.
 
 Automatic theme detection uses page background luminance and an OS fallback; Gmail image themes may need an explicit light/dark setting. Chromium is the initial target; Firefox, Safari and mobile Gmail are not supported releases.
 

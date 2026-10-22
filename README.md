@@ -4,12 +4,12 @@ Email, without the friction.
 
 Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, follow-up reminders, snippets and contact notes to Gmail. Your records stay in your browser profile. There is no Vynlo account, server, subscription or AI service.
 
-**Compatibility preview:** the first version supports a deliberately narrow Gmail identity path. Tracking requires a visible conversation heading whose legacy thread ID matches the URL. Most modern opaque Gmail URLs are currently unsupported. Vynlo disables tracking when it cannot establish identity. Automated fixtures do not establish live Gmail compatibility; see the [compatibility checklist](docs/GMAIL_COMPATIBILITY.md) before relying on this release.
+**Compatibility preview:** the first version supports a deliberately narrow Gmail identity path. Tracking requires a visible conversation heading corroborated against its URL. Both legacy hexadecimal routes and a restricted modern `f` token format are supported when the visible identifiers agree; draft tokens, unknown formats and ambiguous views are disabled. Vynlo disables tracking when it cannot establish identity. Automated fixtures do not establish live Gmail compatibility; see the [compatibility checklist](docs/GMAIL_COMPATIBILITY.md) before relying on this release.
 
 ## What you can do
 
 - Track supported conversations as Needs Reply, Waiting, Follow Up or Resolved; add your own notes.
-- Search and filter a dashboard by status, with due-date and recent-update sorting.
+- Search and filter by status or due reminders, change statuses inline and schedule reminders directly from conversation rows.
 - Schedule local reminders, snooze them, dismiss them or resolve the conversation.
 - Open a searchable command palette and use configurable keyboard shortcuts.
 - Save categorized snippets, fill variables such as `{{first_name}}` and insert plain text into a supported Gmail composer. A new install includes starter templates you can edit or delete.
@@ -40,7 +40,7 @@ To make a ZIP, run `pnpm zip`. WXT writes it into `.output/`; extract it before 
 
 ## Use Vynlo
 
-Open a supported conversation, choose a status, then add a note or reminder. If tracking is unavailable, read the explanation in the panel. Do not infer or invent a thread ID from a subject line. Supported references use a corroborated 16-character hexadecimal ID; [Gmail compatibility](docs/GMAIL_COMPATIBILITY.md) explains the current restrictions.
+Open a supported conversation, choose a status, then add a note or reminder. If tracking is unavailable, read the explanation in the panel. Do not infer or invent a thread ID from a subject line. Saved references use a corroborated 16-character hexadecimal ID; [Gmail compatibility](docs/GMAIL_COMPATIBILITY.md) explains the current restrictions.
 
 Open the dashboard to review your next steps. Due reminders remain visible even if the operating system suppresses the desktop notification. Resolve a conversation to dismiss its reminder; removing tracking also removes its associated reminder.
 
@@ -54,7 +54,7 @@ For snippets, focus the intended Gmail draft, then open Vynlo's snippet picker u
 | Mark resolved   | Cmd+Shift+E | Ctrl+Shift+E  |
 | Snippets        | Cmd+Shift+. | Ctrl+Shift+.  |
 
-Shortcuts deliberately do not fire while typing in an input or composer, preserving Gmail's link-insertion command. Change bindings in settings if another extension or browser shortcut conflicts. The command palette uses arrow keys, Enter and Escape.
+Shortcuts deliberately do not fire while typing in an input or composer, preserving Gmail's link-insertion command. Change bindings in settings if another extension or browser shortcut conflicts. The command palette uses arrow keys, Enter and Escape. It also opens from inside the workspace. Mark Waiting/Resolved shortcuts update the thread with a brief confirmation, without forcing the dashboard open.
 
 Backups contain all accounts, snippets, contact notes, conversations, reminders and settings. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; files are readable JSON, not encrypted archives.
 
@@ -68,7 +68,7 @@ pnpm test:e2e
 pnpm zip
 ```
 
-`pnpm check` runs formatting, ESLint, TypeScript, unit/integration tests and the production build. Browser fixture testing is a separate command. See [development](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md) and [contributing](CONTRIBUTING.md).
+`pnpm check` runs formatting, ESLint, TypeScript, unit/integration tests and the production build. For an interactive design fixture with fictional data, run `pnpm preview:build` then `pnpm preview` and open the local URL it prints. This uses the real UI and storage service in a separate test database; it is not a Gmail compatibility test. Browser fixture testing is a separate command. See [development](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md) and [contributing](CONTRIBUTING.md).
 
 The stack is TypeScript, React, WXT/Vite, Tailwind CSS, Lucide and Zustand. Structured records live in extension-owned IndexedDB; preferences use `chrome.storage.local`. Chrome alarms wake a Manifest V3 service worker for reminders. Vitest, React Testing Library and Playwright cover the layers that can be exercised without Google credentials.
 

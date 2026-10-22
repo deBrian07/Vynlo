@@ -48,3 +48,7 @@ If dependency installation is unavailable, report the exact failure. Running a t
 - [Chrome service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle)
 - [Chrome alarms](https://developer.chrome.com/docs/extensions/reference/api/alarms)
 - [Chrome extension content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)
+
+## Interactive visual fixture
+
+Run `pnpm preview:build` then `pnpm preview` and open the printed localhost URL. The preview is explicitly labeled with fictional data and uses the real UI/background service with a separate database. The Draft lab uses the actual Gmail adapter against a synthetic contenteditable editor so you can verify plain-text insertion, focus restoration and native undo without Google credentials. Notifications and opening fictional conversations are test platform stubs; this preview does not validate live Gmail integration.

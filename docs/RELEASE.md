@@ -1,6 +1,6 @@
 # Release preparation
 
-Vynlo 0.1 is a compatibility preview. A successful build does not remove the live Gmail gate. Do not publish a store listing that implies ordinary opaque Gmail routes are supported until that restriction is resolved and verified.
+Vynlo 0.1 is a compatibility preview. A successful build does not remove the live Gmail gate. Do not publish a store listing that implies broad Gmail compatibility until the supported legacy/opaque identity paths have been verified in real Gmail.
 
 ## Build and inspect
 
@@ -55,7 +55,7 @@ Vynlo adds a local productivity panel to Gmail. Mark a supported conversation Ne
 
 Your Vynlo records stay in your browser profile. There is no Vynlo account, subscription, cloud service, AI provider or advertising. Data is exportable as JSON. Local storage and exported files are not encrypted by Vynlo.
 
-Tracking is manual. Vynlo does not detect replies or send email. Desktop reminders depend on Chrome and operating-system availability; due items stay visible in the dashboard. The compatibility preview supports only corroborated legacy thread routes, not most opaque Gmail URLs. Check the published compatibility guide before installation.
+Tracking is manual. Vynlo does not detect replies or send email. Desktop reminders depend on Chrome and operating-system availability; due items stay visible in the dashboard. The compatibility preview supports corroborated legacy routes and a restricted modern opaque thread format. Ambiguous, draft and unsupported routes disable tracking. Check the published compatibility guide before installation.
 
 Publish this draft only after filling the support/privacy links and validating the promised environment. Update its limitations if the verified supported scope changes; do not simply remove them for marketing.
 

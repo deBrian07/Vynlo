@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Command, PanelsTopLeft } from 'lucide-react';
 import type { GmailAdapter } from '../gmail/adapter';
 import { getSnapshot, request } from '../services/client';
@@ -109,25 +109,31 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
     // Initial preferences are loaded once; later storage events update them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const show = (next = settings.landingView) => {
-    adapter.captureComposer();
-    setView(next);
-    setOpen(true);
-  };
-  const perform = async (action: () => Promise<unknown>) => {
+  const show = useCallback(
+    (next = settings.landingView) => {
+      adapter.captureComposer();
+      setView(next);
+      setOpen(true);
+    },
+    [adapter, settings.landingView],
+  );
+  const perform = useCallback(async (action: () => Promise<unknown>) => {
     try {
       await action();
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'This action could not be completed.');
     }
-  };
-  const mark = async (status: (typeof STATUSES)[number]) => {
-    const ref = adapter.getContext().conversation;
-    if (!ref) throw new Error('Open a supported conversation first.');
-    await request({ type: 'track', ref, status });
-    show();
-  };
+  }, []);
+  const mark = useCallback(
+    async (status: Status) => {
+      const ref = adapter.getContext().conversation;
+      if (!ref) throw new Error('Open a supported conversation first.');
+      await request({ type: 'track', ref, status });
+      show();
+    },
+    [adapter, show],
+  );
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!settings.enabled || open || palette || help) return;
@@ -148,7 +154,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
-  });
+  }, [adapter, help, mark, open, palette, perform, settings.enabled, settings.shortcuts, show]);
   const commands = createCommandRegistry([
     {
       id: 'dashboard',

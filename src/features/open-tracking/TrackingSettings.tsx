@@ -13,6 +13,7 @@ export function TrackingSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [disconnect, setDisconnect] = useState(false);
+  const [fileReady, setFileReady] = useState(false);
   const executing = useRef(false);
   const endpointInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -54,7 +55,7 @@ export function TrackingSettings() {
       setEndpoint(validatedEndpoint);
       setSecret(data.secret);
       setConsent(false);
-      endpointInput.current?.focus();
+      setFileReady(true);
     } catch {
       setError(
         'Choose the connection.json file created by Vynlo setup (up to 4 KB). No connection was made.',
@@ -125,35 +126,13 @@ export function TrackingSettings() {
       ) : (
         snapshot && (
           <>
-            <ol className="tracking-steps">
-              <li>
-                <strong>Get your connection details.</strong>
-                <span>Use the Worker URL and connection key from your Vynlo service operator.</span>
-              </li>
-              <li>
-                <strong>Connect once in this browser.</strong>
-                <span>Chrome asks permission for that Worker host only.</span>
-              </li>
-              <li>
-                <strong>Choose which drafts to track.</strong>
-                <span>
-                  Send through Gmail, then activate its entry in Open tracking. Vynlo never sends
-                  email for you.
-                </span>
-              </li>
-            </ol>
-            <details className="tracking-operator-help">
-              <summary>Setting up your own service?</summary>
-              <p>
-                In the Vynlo source folder, run <code>pnpm tracking:setup</code>. The guided setup
-                creates your Cloudflare Worker and database, then gives you the URL and connection
-                key. A Cloudflare account is required. Review the free-tier limits before deploying.
-              </p>
-            </details>
+            <p className="tracking-setup-intro">
+              Choose your connection file, then connect. You only do this once per browser.
+            </p>
             <form className="tracking-connect-form" onSubmit={(event) => void connect(event)}>
               <fieldset disabled={busy}>
                 <label className="file-button tracking-import">
-                  Import connection file
+                  Choose connection file
                   <input
                     type="file"
                     accept="application/json,.json"
@@ -162,39 +141,47 @@ export function TrackingSettings() {
                   />
                 </label>
                 <small className="muted">
-                  Choose connection.json from setup, or enter the details below. Importing fills
-                  this form only.
+                  Choose connection.json from setup. Nothing connects until you approve below.
                 </small>
-                <label htmlFor="tracking-endpoint">Worker URL</label>
-                <input
-                  ref={endpointInput}
-                  id="tracking-endpoint"
-                  type="url"
-                  required
-                  placeholder="https://vynlo.your-account.workers.dev"
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={endpoint}
-                  onChange={(event) => setEndpoint(event.target.value)}
-                />
-                <label htmlFor="tracking-secret">Connection key</label>
-                <input
-                  id="tracking-secret"
-                  type="password"
-                  minLength={32}
-                  maxLength={256}
-                  pattern="[a-zA-Z0-9_-]{32,256}"
-                  title="Use the 32–256 character connection key from setup."
-                  required
-                  autoComplete="off"
-                  value={secret}
-                  onChange={(event) => setSecret(event.target.value)}
-                  aria-describedby="tracking-key-help"
-                />
-                <small id="tracking-key-help" className="muted">
-                  <LockKeyhole size={12} aria-hidden="true" /> Stored in this browser profile,
-                  outside Vynlo backups. Never share your key.
-                </small>
+                {fileReady && (
+                  <p className="tracking-file-ready" role="status">
+                    <CheckCircle2 size={15} />
+                    Connection file ready · {new URL(endpoint).hostname}
+                  </p>
+                )}
+                <details className="tracking-manual">
+                  <summary>Enter connection details manually</summary>
+                  <label htmlFor="tracking-endpoint">Worker URL</label>
+                  <input
+                    ref={endpointInput}
+                    id="tracking-endpoint"
+                    type="url"
+                    required
+                    placeholder="https://vynlo.your-account.workers.dev"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={endpoint}
+                    onChange={(event) => setEndpoint(event.target.value)}
+                  />
+                  <label htmlFor="tracking-secret">Connection key</label>
+                  <input
+                    id="tracking-secret"
+                    type="password"
+                    minLength={32}
+                    maxLength={256}
+                    pattern="[a-zA-Z0-9_-]{32,256}"
+                    title="Use the 32–256 character connection key from setup."
+                    required
+                    autoComplete="off"
+                    value={secret}
+                    onChange={(event) => setSecret(event.target.value)}
+                    aria-describedby="tracking-key-help"
+                  />
+                  <small id="tracking-key-help" className="muted">
+                    <LockKeyhole size={12} aria-hidden="true" /> Stored in this browser profile,
+                    outside Vynlo backups. Never share your key.
+                  </small>
+                </details>
                 <label className="tracking-consent">
                   <input
                     type="checkbox"
@@ -202,16 +189,31 @@ export function TrackingSettings() {
                     onChange={(event) => setConsent(event.target.checked)}
                   />
                   <span>
-                    I understand that tracking adds a remote image to drafts I choose. The service
-                    and its hosting provider receive image requests, including network metadata.
-                    Email subjects, bodies and recipient addresses are not uploaded by Vynlo.
+                    Allow tracking images in drafts I choose. The service receives image requests
+                    and network metadata; Vynlo uploads no email text or recipient addresses.
                   </span>
                 </label>
-                <button type="submit" className="primary" disabled={!consent}>
+                <button
+                  type="submit"
+                  className="primary"
+                  disabled={!consent || !endpoint || !secret}
+                >
                   {busy ? 'Connecting…' : 'Connect tracking'}
                 </button>
               </fieldset>
             </form>
+            <details className="tracking-operator-help">
+              <summary>I don’t have a connection file</summary>
+              <p>
+                Running your own service? Run <code>pnpm tracking:setup</code> from the Vynlo source
+                folder. The guided setup opens Cloudflare sign-in and creates everything for you.
+                Import the connection file it gives you here.
+              </p>
+              <p>
+                A Cloudflare account is required. Hosting limits apply. If someone else runs your
+                service, ask them for your connection file.
+              </p>
+            </details>
           </>
         )
       )}

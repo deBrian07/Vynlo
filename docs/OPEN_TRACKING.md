@@ -12,7 +12,7 @@ Conversations, notes, reminders and snippets continue to work without a server.
 
 If you already have a Vynlo tracking service, there is no development setup:
 
-1. Open **Vynlo Settings → Open tracking**.
+1. Open **Vynlo Settings → Email open tracking**.
 2. Paste your service's HTTPS endpoint and connection key. Approve Chrome's request
    to connect to that address.
 3. Connect, then open a Gmail draft and choose Vynlo's tracking action when you want it.
@@ -35,10 +35,14 @@ pnpm tracking:setup
 The helper explains what will be published and asks before making cloud changes.
 It then opens Cloudflare sign-in in your browser, creates one D1 database, applies
 its schema, generates a connection key and deploys one Worker. You do not need to
-edit a config file, generate keys yourself or copy a database ID.
+edit a config file, generate keys yourself or copy a database ID. After deployment,
+paste the `https://…workers.dev` address printed by Cloudflare when the helper asks.
 
-When it finishes, open **`cloudflare/.setup/connection.json`** locally and copy its
-`endpoint` and `secret` into Vynlo's connection form. The helper tests the deployed
+When it finishes, choose **Show connection file** in the terminal. Your file manager
+opens with the private connection file selected. Open that file locally and copy
+`endpoint` into **Worker URL** and `secret` into **Connection key** in Vynlo's form.
+If your file manager cannot open, use the full file path printed by the helper:
+**`cloudflare/.setup/connection.json`**. The helper tests the deployed
 connection before reporting success. It does not print your key in terminal output
 or pass it in command arguments.
 

@@ -91,25 +91,45 @@ async function wrangler(args) {
       ],
       {
         cwd: root,
-        stdio: ['inherit', 'pipe', 'inherit'],
+        // Keep the TTY so account selection and Cloudflare confirmations remain usable.
+        stdio: 'inherit',
         env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
         shell: false,
       },
     );
-    let output = '';
-    child.stdout.on('data', (data) => {
-      output += data.toString();
-      process.stdout.write(data);
-    });
     child.on('error', reject);
     child.on('close', (code) => {
-      if (code === 0) resolve(output);
+      if (code === 0) resolve();
       else reject(new SetupError(`Cloudflare command stopped (${code ?? 'interrupted'}).`));
     });
   });
 }
 
+export function connectionFileCommand(platform, file) {
+  if (platform === 'darwin') return { command: 'open', args: ['-R', file] };
+  if (platform === 'win32') return { command: 'explorer.exe', args: ['/select,', file] };
+  return { command: 'xdg-open', args: [path.dirname(file)] };
+}
+
+async function revealConnection(file) {
+  const { command, args } = connectionFileCommand(process.platform, file);
+  await new Promise((resolve) => {
+    const child = spawn(command, args, { stdio: 'ignore', shell: false });
+    child.on('error', () => resolve());
+    child.on('close', () => resolve());
+  });
+}
+
 async function verify(endpoint, secret) {
+  const health = await globalThis.fetch(`${endpoint}/health`, {
+    redirect: 'error',
+    signal: globalThis.AbortSignal.timeout(15000),
+  });
+  if (!health.ok) throw new SetupError('The deployed service is not responding.');
+  const identity = await health.json();
+  if (identity?.service !== 'vynlo-tracking' || identity?.version !== 1) {
+    throw new SetupError('The deployed service did not identify itself as Vynlo.');
+  }
   const result = await globalThis.fetch(`${endpoint}/v1/check`, {
     headers: { Authorization: `Bearer ${secret}` },
     redirect: 'error',
@@ -163,7 +183,7 @@ export async function main() {
   }
   if (!validWorkerName(config.name)) throw new SetupError('Invalid service name in saved setup.');
   // Refresh paths after the checkout is moved while retaining the database/account binding.
-  config.main = path.join(root, 'cloudflare/src/index.ts');
+  config = { ...config, ...createConfig(config.name, root) };
   await savePrivate(configPath, config);
   process.stdout.write('\n1/4 · Sign in to Cloudflare in your browser.\n');
   await wrangler(['login']);
@@ -202,17 +222,12 @@ export async function main() {
   process.stdout.write('\n3/4 · Apply the database schema.\n');
   await wrangler(['d1', 'migrations', 'apply', 'DB', '--remote', '--config', configPath]);
   process.stdout.write('\n4/4 · Publish the tracking service.\n');
-  const output = await wrangler(['deploy', '--config', configPath, '--secrets-file', secretsPath]);
-  const detected = output.match(/https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev\b/g)?.at(-1);
+  await wrangler(['deploy', '--config', configPath, '--secrets-file', secretsPath]);
   let endpoint;
   while (!endpoint) {
     try {
-      endpoint = normalizeEndpoint(
-        detected || (await ask('Paste the https://…workers.dev URL above: ')),
-      );
+      endpoint = normalizeEndpoint(await ask('Paste the https://…workers.dev URL printed above: '));
     } catch {
-      if (detected)
-        throw new SetupError('Cannot validate deployment URL. See docs/OPEN_TRACKING.md.');
       process.stdout.write('Enter the root workers.dev address, without a path or query.\n');
     }
   }
@@ -226,11 +241,14 @@ export async function main() {
     );
   }
   process.stdout.write(
-    `\nReady. In Vynlo Settings → Open tracking, paste the endpoint and connection key from:\n${connectionPath}\n\n` +
+    `\nReady. In Vynlo Settings → Email open tracking, paste the endpoint and connection key from:\n${connectionPath}\n\n` +
       'Keep that file private. Do not commit, screenshot or share the key.\n' +
       'The extension asks permission for your endpoint when you connect.\n' +
       'Tracking stays optional; insert a tracking image only in drafts you choose.\n',
   );
+  if ((await ask('Show your connection file in the file manager? [Y/n]: ')).toLowerCase() !== 'n') {
+    await revealConnection(connectionPath);
+  }
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {

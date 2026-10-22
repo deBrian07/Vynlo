@@ -4,7 +4,9 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const moduleUrl = new URL('../../scripts/tracking-setup.mjs', import.meta.url);
-const { validWorkerName, normalizeEndpoint, createConfig } = await import(moduleUrl.href);
+const { validWorkerName, normalizeEndpoint, createConfig, connectionFileCommand } = await import(
+  moduleUrl.href
+);
 const script = fileURLToPath(moduleUrl);
 
 describe('tracking setup safety', () => {
@@ -42,6 +44,19 @@ describe('tracking setup safety', () => {
       'API_LIMITER',
     ]);
     expect(JSON.stringify(config)).not.toContain('ADMIN_SECRET');
+  });
+
+  it('reveals only the file path without placing credentials in shell commands', () => {
+    const file = '/project with spaces/cloudflare/.setup/connection.json';
+    expect(connectionFileCommand('darwin', file)).toEqual({ command: 'open', args: ['-R', file] });
+    expect(connectionFileCommand('win32', file)).toEqual({
+      command: 'explorer.exe',
+      args: ['/select,', file],
+    });
+    expect(connectionFileCommand('linux', file)).toEqual({
+      command: 'xdg-open',
+      args: ['/project with spaces/cloudflare/.setup'],
+    });
   });
 
   it('shows help without invoking Cloudflare or requiring credentials', () => {

@@ -36,7 +36,8 @@ export type Category = keyof typeof CATEGORIES;
 export const CATEGORY_IDS = Object.keys(CATEGORIES) as Category[];
 export const MODEL = 'tev1:0.8b';
 export const CLASSIFIER_ORIGIN = 'http://127.0.0.1:11434';
-export const CLASSIFIER_PERMISSION = `${CLASSIFIER_ORIGIN}/*`;
+// Chrome host match patterns do not constrain ports. Fetch still uses the fixed origin above.
+export const CLASSIFIER_PERMISSION = 'http://127.0.0.1/*';
 export const isCategory = (value: unknown): value is Category =>
   typeof value === 'string' && Object.hasOwn(CATEGORIES, value);
 export interface Prediction {

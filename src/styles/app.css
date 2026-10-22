@@ -1184,11 +1184,15 @@ kbd {
   border-radius: 12px;
   box-shadow: 0 24px 90px #0004;
   overflow: hidden;
-  max-height:calc(100dvh - min(18vh,150px) - 24px);
-  display:flex;
-  flex-direction:column;
+  max-height: calc(100dvh - min(18vh, 150px) - 24px);
+  display: flex;
+  flex-direction: column;
 }
-.palette-heading,.palette-search,.palette-footer { flex-shrink:0; }
+.palette-heading,
+.palette-search,
+.palette-footer {
+  flex-shrink: 0;
+}
 .palette-heading {
   display: flex;
   align-items: center;
@@ -1238,8 +1242,8 @@ kbd {
   padding: 0;
   max-height: 390px;
   overflow: auto;
-  flex:1;
-  min-height:0;
+  flex: 1;
+  min-height: 0;
 }
 .palette-command {
   width: 100%;

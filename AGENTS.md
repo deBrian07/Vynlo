@@ -1,6 +1,6 @@
 # Vynlo working rules
 
-- Build a local-first Gmail extension. No backend, Gmail API, OAuth, analytics or automatic sending.
+- Build a local-first Gmail extension. No Gmail API, OAuth, analytics or automatic sending. The user explicitly authorized optional encrypted Cloudflare backups and local backup files. Cloud backup must remain off by default; never transmit plaintext workspace data or recovery keys.
 - Keep Gmail selectors inside `src/gmail`. Fail closed when account or conversation identity is uncertain.
 - All structured storage belongs to the extension service worker, never the Gmail origin.
 - Preserve account isolation. Validate messages and imported data at runtime.

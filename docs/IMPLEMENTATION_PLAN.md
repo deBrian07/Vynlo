@@ -1,5 +1,18 @@
 # Implementation plan
 
+## Data protection branch
+
+Branch `feat/data-backups` starts at verified GitHub main `e9244ed`. It does not include the separate open-tracking feature branch.
+
+1. Versioned encrypted backup codec: AES-GCM with independent vault authentication and encryption keys; passphrase-protected local files; recovery-file validation. Test tampering, wrong keys, malformed input and key separation.
+2. Independent private Cloudflare R2 service: bounded encrypted envelopes, hashed capabilities, conditional writes, no plaintext records. Test authorization, concurrent writes and failures.
+3. Extension-owned backup controller: off by default, explicit host grants, encrypted local export, preview/confirm restore, persisted recovery journal, queued automatic snapshots, restart recovery and conflict handling.
+4. Guided settings: local file download/restore; optional cloud setup, recovery-file save, enable/pause/status and restore after reinstall. Never require a cloud connection for local backups.
+5. Preserve optional open-tracking records/capabilities when the installed profile contains that separate module; do not grant its host permission during restore.
+6. Guided operator deployment, privacy/security documentation, production package and complete checks. Distinguish local tests from live Cloudflare/Chrome validation; do not deploy or merge without owner action.
+
+Acceptance: a clean install can restore core records/settings/reminders from a validated local file or encrypted cloud vault using an external recovery file. Default installation makes no backup network requests. Failed backups/restores never silently erase existing data; stale cloud writes do not overwrite newer snapshots.
+
 Vynlo enhances Gmail locally. The initial release includes P0 and P1; automatic reply detection and all other P2 work remain out of scope.
 
 ## Milestones and gates

@@ -84,9 +84,27 @@ export function createTrackingService(
               : 'The tracking Worker could not complete the request. Try again shortly.',
         );
       if (response.status === 204) return {};
-      const text = await response.text();
-      if (text.length > 16_384)
-        throw new Error('The tracking Worker returned an unexpected response.');
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('The tracking Worker returned an empty response.');
+      const chunks: Uint8Array[] = [];
+      let length = 0;
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        length += part.value.length;
+        if (length > 16_384) {
+          await reader.cancel();
+          throw new Error('The tracking Worker returned an unexpected response.');
+        }
+        chunks.push(part.value);
+      }
+      const bytes = new Uint8Array(length);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+      }
+      const text = new TextDecoder().decode(bytes);
       const json: unknown = JSON.parse(text);
       if (!json || typeof json !== 'object' || Array.isArray(json))
         throw new Error('The tracking Worker returned an unexpected response.');
@@ -99,6 +117,7 @@ export function createTrackingService(
         throw error;
       throw new Error(
         'Could not reach your tracking Worker. Check its URL and connection, then try again.',
+        { cause: error },
       );
     } finally {
       clearTimeout(timer);
@@ -238,13 +257,21 @@ export function createTrackingService(
         );
         if (!record || record.expiresAt <= now())
           throw new Error('This tracking entry is unavailable or expired.');
-        await api(
+        const activated = await api(
           record.endpoint,
           `/v1/trackings/${record.id}/activate`,
           record.deleteToken,
           'POST',
         );
-        await database.put({ ...record, armedAt: record.armedAt ?? now() });
+        if (
+          activated.ok !== true ||
+          typeof activated.armedAt !== 'number' ||
+          !Number.isSafeInteger(activated.armedAt) ||
+          activated.armedAt < record.createdAt ||
+          activated.armedAt > now() + 60_000
+        )
+          throw new Error('The Worker could not confirm activation. Refresh or try again.');
+        await database.put({ ...record, armedAt: activated.armedAt });
         return { ok: true, data: null };
       }
       if (m.type === 'tracking-refresh') {

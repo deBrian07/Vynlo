@@ -1,5 +1,5 @@
 import { test, expect, chromium, type BrowserContext, type Page } from '@playwright/test';
-import { existsSync, readFileSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, mkdtempSync, rmSync, mkdirSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import type { Request, Response } from '../../src/types/messages';
@@ -9,8 +9,13 @@ const build = resolve('.output/chrome-mv3');
 const fixture = readFileSync(resolve('tests/fixtures/gmail-browser.html'), 'utf8');
 const thread = '18b123456789abcd';
 const url = `https://mail.google.com/mail/u/0/#all/${thread}`;
-if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync('/private/tmp/vynlo-playwright')) {
-  process.env.PLAYWRIGHT_BROWSERS_PATH = '/private/tmp/vynlo-playwright';
+const legacyBrowsers = '/private/tmp/vynlo-playwright';
+if (
+  !process.env.PLAYWRIGHT_BROWSERS_PATH &&
+  existsSync(legacyBrowsers) &&
+  readdirSync(legacyBrowsers).some((name) => name.startsWith('chromium-'))
+) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = legacyBrowsers;
 }
 
 let context: BrowserContext;

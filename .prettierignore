@@ -8,3 +8,5 @@ playwright-report
 
 # Preserve supplied vector assets and brand-kit guidance verbatim.
 assets/brand
+
+release

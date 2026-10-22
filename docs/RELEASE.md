@@ -9,10 +9,12 @@ pnpm install --frozen-lockfile
 pnpm check
 pnpm exec playwright install chromium
 pnpm test:e2e
-pnpm zip
+pnpm release
 ```
 
-The unpacked extension is `.output/chrome-mv3`. WXT places the distributable ZIP in `.output/`; use the filename reported by the packaging command. The archive must contain `manifest.json` at its root alongside the referenced scripts, pages and icons. Do not wrap the extension in another parent directory inside the ZIP.
+`pnpm release` builds and packages the extension, then prepares a visible `release/` directory containing `Vynlo/` (ready for Load unpacked), `START-HERE.html` (an offline installation guide) and the versioned ZIP. Users of a prepared release need only Chrome, with no developer tools or terminal commands. Generated releases are ignored by Git; a source clone requires the build step above.
+
+The original unpacked extension remains in `.output/chrome-mv3`. WXT also places the distributable ZIP in `.output/`. The archive must contain `manifest.json` at its root alongside the referenced scripts, pages and icons. Do not wrap the extension in another parent directory inside the ZIP. The release helper copies the extension without modifying its manifest or adding the guide to the extension bundle.
 
 Load the extracted archive through `chrome://extensions` → Developer mode → Load unpacked, using a fresh test profile. This checks the actual deliverable instead of a development build. Keep a backup of personal Vynlo records before changing installations or uninstalling.
 

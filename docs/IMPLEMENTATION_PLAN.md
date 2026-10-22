@@ -35,3 +35,5 @@ History lives in this repository. Do not publish a remote or submit the extensio
 ## Review and polish validation
 
 The review adds source-correlated opaque thread routes, safer native snippet insertion, inline workflow actions, a due queue, protected unsaved edits, isolated keyboard events, and refined light/dark screens. The latest executed checks and remaining browser/Gmail gates are recorded in [REVIEW.md](REVIEW.md). The local interactive design fixture and draft lab provide repeatable visual and native-editing checks without an account.
+
+The preview toolbar now lives inside the workspace sidebar. `pnpm release` prepares a visible ready-to-load `release/Vynlo` folder and an offline three-step setup guide. End users of that prepared build need only Chrome; source-only checkouts still require the developer build. The full check suite, package integrity checks and native Chrome preview/guide inspection passed after these changes. Creating the requested commits is currently blocked by this session's read-only `.git` permissions.

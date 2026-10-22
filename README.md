@@ -20,23 +20,17 @@ Vynlo never sends email. Waiting means you manually marked the conversation; rem
 
 ## Install locally
 
-Requirements: Chrome/Chromium 120 or newer, Node.js 22.13.0 or newer and pnpm 11.9.0.
+You only need Chrome/Chromium 120 or newer to use a built release. No terminal, Vynlo account, API keys or Google OAuth setup.
 
-From this repository:
+Open **`release/START-HERE.html`** for the short setup guide when using this prepared checkout. The ready-to-load extension is in **`release/Vynlo`**.
 
-```sh
-pnpm install --frozen-lockfile
-pnpm build
-```
+1. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and select the **Vynlo** folder inside **release**.
+3. Open or reload Gmail, then use its **Vynlo** control.
 
-1. Open `chrome://extensions` and enable **Developer mode**.
-2. Choose **Load unpacked** and select `.output/chrome-mv3` inside this repository.
-3. Open or reload `https://mail.google.com/mail/`.
-4. Open Vynlo from its Gmail control or use the extension popup to open settings.
+Keep the folder in place after installing. Already installed from `.output/chrome-mv3`? Keep that installation path and click **Reload** on the extension card after rebuilding, then reload Gmail. Export your records before uninstalling or changing installation paths: another extension ID has a separate data store.
 
-After rebuilding, reload the extension in `chrome://extensions`, then reload Gmail. Export your records before uninstalling or changing installation paths: another extension ID has a separate data store.
-
-To make a ZIP, run `pnpm zip`. WXT writes it into `.output/`; extract it before using **Load unpacked**. See [release instructions](docs/RELEASE.md) for package checks. Nothing in these commands publishes the extension.
+A source-only clone does not include generated releases. Developers can create the ready-to-load folder and ZIP using the commands below. Vynlo has not been published to the Chrome Web Store; local installation uses Chrome’s **Load unpacked** flow.
 
 ## Use Vynlo
 
@@ -59,6 +53,15 @@ Shortcuts deliberately do not fire while typing in an input or composer, preserv
 Backups contain all accounts, snippets, contact notes, conversations, reminders and settings. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; files are readable JSON, not encrypted archives.
 
 ## Development
+
+Requires Node.js 22.13.0 or newer and pnpm 11.9.0. To build from source:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm release
+```
+
+This creates `release/Vynlo`, `release/START-HERE.html` and a versioned ZIP. The original build remains in `.output/chrome-mv3`. Nothing is published. See [release instructions](docs/RELEASE.md) for package checks.
 
 ```sh
 pnpm dev

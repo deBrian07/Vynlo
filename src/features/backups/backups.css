@@ -1,0 +1,119 @@
+.backup-heading {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.backup-heading h2 {
+  margin: 0 0 6px;
+}
+.backup-heading p {
+  margin: 0;
+}
+.backup-symbol {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 12px;
+  padding: 12px;
+  display: inline-flex;
+}
+.backup-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 22px;
+  margin: 16px 0;
+  background: var(--surface);
+}
+.backup-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.backup-card-title h3 {
+  font-size: 14px;
+  margin: 0;
+}
+.backup-badge {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--hover);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 20px;
+  margin-left: auto;
+}
+.backup-badge.is-active {
+  color: var(--accent);
+}
+.backup-fields {
+  border: 0;
+  padding: 0;
+  margin: 20px 0 0;
+  min-width: 0;
+}
+.backup-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.backup-panel label:not(.file-button) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+.backup-panel input:not([type='checkbox']):not([type='file']) {
+  width: 100%;
+}
+.backup-panel .backup-check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.6;
+}
+.backup-check input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.backup-meta {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.backup-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 0 6px;
+}
+.backup-detail > label:not(.backup-check):not(.file-button) {
+  width: 100%;
+}
+.backup-steps {
+  padding-left: 20px;
+  line-height: 1.7;
+  margin: 0;
+  color: var(--muted);
+}
+.backup-panel summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 13px;
+}
+.backup-panel details {
+  margin-top: 12px;
+}
+.backup-panel .backup-detail p {
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .backup-inputs {
+    grid-template-columns: 1fr;
+  }
+  .backup-card {
+    padding: 16px;
+  }
+}

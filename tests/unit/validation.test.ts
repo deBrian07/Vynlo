@@ -30,6 +30,16 @@ describe('untrusted inputs', () => {
       safeConversationUrl(url.replace('mail.google.com', 'evil.test'), 'a@example.com', thread),
     ).toBe(false);
     expect(safeConversationUrl('javascript:alert(1)', 'a@example.com', thread)).toBe(false);
+    expect(
+      safeConversationUrl(
+        url.replace('#all/', '&authuser=b%40example.com#all/'),
+        'a@example.com',
+        thread,
+      ),
+    ).toBe(false);
+    expect(
+      safeConversationUrl(url.replace('#all/', '&view=cm#all/'), 'a@example.com', thread),
+    ).toBe(false);
   });
   it('rejects malformed messages and duplicate shortcuts', () => {
     for (const input of [

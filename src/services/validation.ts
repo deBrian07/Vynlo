@@ -22,6 +22,7 @@ export function safeConversationUrl(value: unknown, accountId: string, threadId:
       url.origin === 'https://mail.google.com' &&
       /^\/mail\/(?:u\/\d+\/)?$/.test(url.pathname) &&
       url.searchParams.get('authuser') === accountId &&
+      [...url.searchParams.keys()].length === 1 &&
       url.hash === `#all/${threadId}` &&
       !url.username &&
       !url.password

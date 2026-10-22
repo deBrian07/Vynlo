@@ -44,6 +44,10 @@ export class GmailAdapter {
     const unique = [...new Set(candidates)];
     if (unique.length !== 1) return null;
     const email = unique[0]!;
+    const requestedAccounts = new URL(this.win.location.href).searchParams.getAll('authuser');
+    if (requestedAccounts.length > 1) return null;
+    const requestedAccount = requestedAccounts[0];
+    if (requestedAccount?.includes('@') && requestedAccount.toLowerCase() !== email) return null;
     const path = this.win.location.pathname;
     if (this.previousPath && path !== this.previousPath && email === this.previousAccount) {
       this.pendingPath = path;

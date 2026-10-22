@@ -127,6 +127,12 @@ describe('Gmail identity proof', () => {
     accountControl().setAttribute('aria-label', 'Google Account: Example (Person@Example.com)');
     expect(adapter.getContext().account?.id).toBe('person@example.com');
   });
+  it('waits until a saved account-specific link agrees with the visible account', () => {
+    history.replaceState({}, '', `/?authuser=other%40example.com#all/${THREAD_A}`);
+    expect(adapter.getContext().account).toBeNull();
+    accountControl().setAttribute('aria-label', 'Google Account: Other (other@example.com)');
+    expect(adapter.getContext().account?.id).toBe('other@example.com');
+  });
   it('detects light and dark computed themes', () => {
     expect(adapter.getContext().theme).toBe('light');
     document.querySelector<HTMLElement>('main')!.style.backgroundColor = 'rgb(25, 25, 25)';

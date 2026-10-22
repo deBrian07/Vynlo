@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   ExternalLink,
   BellPlus,
+  Command,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -18,6 +19,7 @@ import {
   type Reminder,
   type Settings,
   type Snapshot,
+  SHORTCUT_LABELS,
 } from '../types/model';
 import type { Request } from '../types/messages';
 import type { GmailAdapter } from '../gmail/adapter';
@@ -29,7 +31,8 @@ import { ReminderEditor } from '../features/reminders/ReminderEditor';
 import { Snippets } from '../features/snippets/Snippets';
 import { Contacts } from '../features/contacts/Contacts';
 import { SettingsView } from '../features/settings/SettingsView';
-import { Confirm, Loading, Logo } from './ui';
+import { Confirm, Loading, Logo, Modal } from './ui';
+import { formatShortcut } from '../features/shortcuts/shortcuts';
 
 type View = Settings['landingView'] | 'settings';
 interface Props {
@@ -40,6 +43,7 @@ interface Props {
   reminderSignal?: number;
   onClose?: () => void;
   options?: boolean;
+  onPalette?: () => void;
 }
 export default function Workspace({
   context,
@@ -49,6 +53,7 @@ export default function Workspace({
   reminderSignal = 0,
   onClose,
   options = false,
+  onPalette,
 }: Props) {
   const [data, setData] = useState<Snapshot | null>(null);
   const [view, setView] = useState<View>(initialView);
@@ -60,8 +65,15 @@ export default function Workspace({
   const [reminder, setReminder] = useState<ConversationRef | null>(null);
   const [removing, setRemoving] = useState<Conversation | null>(null);
   const [welcome, setWelcome] = useState(true);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const [shortcuts, setShortcuts] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
   const accountId = options ? selectedAccount || undefined : context?.account?.id;
   const generation = useRef(0);
+  const invalidate = useCallback(() => {
+    generation.current += 1;
+  }, []);
   const liveAccount = useRef(accountId);
   liveAccount.current = accountId;
   const refresh = useCallback(async () => {
@@ -83,8 +95,21 @@ export default function Workspace({
     void refresh();
     const changed = () => void refresh();
     chrome.storage.onChanged.addListener(changed);
-    return () => chrome.storage.onChanged.removeListener(changed);
-  }, [refresh]);
+    return () => {
+      invalidate();
+      chrome.storage.onChanged.removeListener(changed);
+    };
+  }, [refresh, invalidate]);
+  useEffect(() => {
+    if (options) return;
+    const root = panel.current?.getRootNode();
+    const previous = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
+    panel.current?.focus({ preventScroll: true });
+    return () => {
+      if (previous instanceof HTMLElement && previous.isConnected)
+        previous.focus({ preventScroll: true });
+    };
+  }, [options]);
   useEffect(() => {
     setView(initialView);
   }, [initialView]);
@@ -118,6 +143,8 @@ export default function Workspace({
       throw new Error('The Gmail account changed. Reopen this action.');
     if (message.type === 'track' && message.ref.accountId !== liveAccount.current)
       throw new Error('The Gmail account changed. Reopen the conversation.');
+    if (message.type === 'save-contact' && message.contact.accountId !== liveAccount.current)
+      throw new Error('The Gmail account changed. Reopen this contact note.');
     await request(message);
     await refresh();
   };
@@ -164,13 +191,48 @@ export default function Workspace({
   };
   const changeView = (next: View) => {
     if (editing || reminder) return;
+    if (next === view) return;
+    if (settingsDirty) {
+      setPendingLeave(() => () => setView(next));
+      return;
+    }
     setView(next);
   };
   return (
-    <div className={`workspace-panel ${options ? 'full-page' : ''}`} aria-label="Vynlo workspace">
+    <div
+      ref={panel}
+      className={`workspace-panel ${options ? 'full-page' : ''}`}
+      role="region"
+      tabIndex={-1}
+      aria-label="Vynlo workspace"
+      onKeyDown={(event) => {
+        if (
+          event.key !== 'Escape' ||
+          event.defaultPrevented ||
+          (event.target instanceof Element && event.target.closest('dialog'))
+        )
+          return;
+        if (editing || reminder || removing || pendingLeave || shortcuts) return;
+        if (onClose) {
+          event.preventDefault();
+          event.stopPropagation();
+          guardedClose();
+        }
+      }}
+    >
       <header className="workspace-header">
         <Logo />
         <div className="header-actions">
+          {onPalette && (
+            <button
+              className="icon-button"
+              aria-label="Open command palette"
+              title={`Commands · ${formatShortcut(settings.shortcuts.palette)}`}
+              onClick={onPalette}
+            >
+              <Command size={17} />
+            </button>
+          )}
           {current && (
             <>
               <button
@@ -194,7 +256,7 @@ export default function Workspace({
         </div>
       </header>
       <div className="account-bar">
-        <span className="account-dot" />
+        <span className={`account-dot ${!accountId ? 'is-unverified' : ''}`} />
         {options ? (
           <select
             aria-label="Workspace account"
@@ -299,6 +361,12 @@ export default function Workspace({
                     )
                   }
                   onReminder={setReminder}
+                  onStatusChange={(c, status) =>
+                    act(
+                      () => mutate({ type: 'track', ref: c, status }),
+                      `Marked ${status.replaceAll('-', ' ')}`,
+                    )
+                  }
                   onReminderAction={(r, a) =>
                     act(
                       () => reminderAction(r, a),
@@ -330,7 +398,8 @@ export default function Workspace({
                   snapshot={data}
                   onSave={mutate}
                   onRefresh={refresh}
-                  onSnippets={() => setView('snippets')}
+                  onSnippets={() => changeView('snippets')}
+                  onDirtyChange={setSettingsDirty}
                 />
               )}
             </>
@@ -341,7 +410,9 @@ export default function Workspace({
         <span>
           <ShieldCheck size={12} /> Local to this browser
         </span>
-        <span>Email, without the friction.</span>
+        <button className="footer-shortcuts" onClick={() => setShortcuts(true)}>
+          <Command size={12} /> Shortcuts <kbd>?</kbd>
+        </button>
       </footer>
       {editing && (
         <ConversationEditor
@@ -399,17 +470,49 @@ export default function Workspace({
         <Confirm
           title="Remove conversation tracking?"
           onClose={() => setRemoving(null)}
-          onConfirm={() =>
-            act(async () => {
-              await mutate({ type: 'untrack', accountId: removing.accountId, id: removing.id });
-              setRemoving(null);
-              setEditing(null);
-            }, 'Tracking removed')
-          }
+          onConfirm={async () => {
+            await mutate({ type: 'untrack', accountId: removing.accountId, id: removing.id });
+            setRemoving(null);
+            setEditing(null);
+            setToast('Tracking removed');
+          }}
         >
           This removes the status, note and reminder from Vynlo. Your Gmail conversation is
           unchanged.
         </Confirm>
+      )}
+      {pendingLeave && (
+        <Confirm
+          title="Discard unsaved preferences?"
+          label="Discard changes"
+          onClose={() => setPendingLeave(null)}
+          onConfirm={() => {
+            pendingLeave();
+            setPendingLeave(null);
+            setSettingsDirty(false);
+          }}
+        >
+          Your preferences have not been saved. Stay here to keep editing, or discard your changes
+          and switch views.
+        </Confirm>
+      )}
+      {shortcuts && (
+        <Modal title="Keyboard shortcuts" onClose={() => setShortcuts(false)}>
+          <dl className="shortcut-list">
+            {Object.entries(settings.shortcuts).map(([key, value]) => (
+              <div key={key}>
+                <dt>{SHORTCUT_LABELS[key as keyof typeof SHORTCUT_LABELS]}</dt>
+                <dd>
+                  <kbd>{formatShortcut(value)}</kbd>
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="muted">
+            Shortcuts pause while typing. Escape closes the workspace. Customize shortcuts in
+            Settings.
+          </p>
+        </Modal>
       )}
       {toast && (
         <div className="toast" role="status">

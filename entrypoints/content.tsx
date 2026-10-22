@@ -17,6 +17,8 @@ export default defineContentScript({
       name: 'vynlo-root',
       position: 'overlay',
       anchor: 'body',
+      // Keep typing in Vynlo from becoming a Gmail action after shadow retargeting.
+      isolateEvents: true,
       onMount(container) {
         const root = createRoot(container);
         root.render(

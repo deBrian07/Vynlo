@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Command, PanelsTopLeft } from 'lucide-react';
 import type { GmailAdapter } from '../gmail/adapter';
 import { getSnapshot, request } from '../services/client';
@@ -30,7 +30,14 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
   const [remind, setRemind] = useState(0);
   const [help, setHelp] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [ready, setReady] = useState(false);
+  const started = useRef(false);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
   const [trackedStatus, setTrackedStatus] = useState<Status | undefined>();
   const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
   useEffect(() => adapter.subscribe(setContext), [adapter]);
@@ -75,13 +82,22 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
         return next;
       });
     };
-    const stop = adapter.onLayout(place);
-    window.addEventListener('resize', place);
-    document.addEventListener('scroll', place, true);
+    let frame: number | undefined;
+    const schedulePlacement = () => {
+      if (frame !== undefined) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        place();
+      });
+    };
+    const stop = adapter.onLayout(schedulePlacement);
+    window.addEventListener('resize', schedulePlacement);
+    document.addEventListener('scroll', schedulePlacement, { capture: true, passive: true });
     return () => {
       stop();
-      window.removeEventListener('resize', place);
-      document.removeEventListener('scroll', place, true);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedulePlacement);
+      document.removeEventListener('scroll', schedulePlacement, true);
     };
   }, [adapter, context.conversation]);
   useEffect(() => {
@@ -91,10 +107,11 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
         const data = await getSnapshot();
         if (active) {
           setSettings(data.settings);
-          if (!ready && data.settings.openOnStartup) {
+          if (!started.current && data.settings.openOnStartup) {
             setView(data.settings.landingView);
             setOpen(true);
           }
+          started.current = true;
           setReady(true);
         }
       } catch {
@@ -107,8 +124,6 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
       active = false;
       chrome.storage.onChanged.removeListener(load);
     };
-    // Initial preferences are loaded once; later storage events update them.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const show = useCallback(
     (next = settings.landingView) => {
@@ -131,17 +146,22 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
       const ref = adapter.getContext().conversation;
       if (!ref) throw new Error('Open a supported conversation first.');
       await request({ type: 'track', ref, status });
-      show();
+      setNotice(`Marked ${STATUS_LABELS[status]}`);
     },
-    [adapter, show],
+    [adapter],
   );
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!settings.enabled || open || palette || help) return;
+      if (!settings.enabled || palette || help) return;
+      if (
+        event.composedPath().some((target) => target instanceof Element && target.closest('dialog'))
+      )
+        return;
       const action = (Object.entries(settings.shortcuts) as [ShortcutAction, string][]).find(
         ([, binding]) => matchShortcut(event, binding),
       )?.[0];
       if (!action) return;
+      if (open && action !== 'palette') return;
       // Context actions never steal a key when unavailable.
       if ((action === 'waiting' || action === 'resolved') && !adapter.getContext().conversation)
         return;
@@ -161,6 +181,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
       id: 'dashboard',
       title: 'Open Vynlo dashboard',
       group: 'Workspace',
+      shortcut: formatShortcut(settings.shortcuts.dashboard),
       run: () => show('dashboard'),
     },
     {
@@ -175,6 +196,10 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
       id: status,
       title: `Mark conversation as ${STATUS_LABELS[status]}`,
       group: 'Conversation',
+      shortcut:
+        status === 'waiting' || status === 'resolved'
+          ? formatShortcut(settings.shortcuts[status])
+          : undefined,
       disabledReason: context.conversation
         ? undefined
         : context.reason || 'Open a supported conversation first.',
@@ -190,7 +215,13 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
         setRemind((n) => n + 1);
       },
     },
-    { id: 'snippets', title: 'Open snippets', group: 'Writing', run: () => show('snippets') },
+    {
+      id: 'snippets',
+      title: 'Open snippets',
+      group: 'Writing',
+      shortcut: formatShortcut(settings.shortcuts.snippets),
+      run: () => show('snippets'),
+    },
     {
       id: 'insert',
       title: 'Insert a snippet',
@@ -211,7 +242,16 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
       run: () => setHelp(true),
     },
   ]);
-  if (!ready || !settings.enabled) return null;
+  if (!ready)
+    return error ? (
+      <div className="vynlo theme-light">
+        <div className="gmail-launcher connection-error" role="alert">
+          <span>{error}</span>
+          <button onClick={() => window.location.reload()}>Reload Gmail</button>
+        </div>
+      </div>
+    ) : null;
+  if (!settings.enabled) return null;
   return (
     <div className={`vynlo theme-${settings.theme === 'system' ? context.theme : settings.theme}`}>
       {!open && anchor && (
@@ -274,6 +314,10 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
             editSignal={edit}
             reminderSignal={remind}
             onClose={() => setOpen(false)}
+            onPalette={() => {
+              adapter.captureComposer();
+              setPalette(true);
+            }}
           />
         </Suspense>
       )}
@@ -300,6 +344,22 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
         <div className="toast error" role="alert">
           {error}
           <button aria-label="Dismiss error" onClick={() => setError('')}>
+            ×
+          </button>
+        </div>
+      )}
+      {notice && (
+        <div className="toast" role="status">
+          {notice}
+          <button
+            onClick={() => {
+              show('dashboard');
+              setNotice('');
+            }}
+          >
+            View
+          </button>
+          <button aria-label="Dismiss notification" onClick={() => setNotice('')}>
             ×
           </button>
         </div>

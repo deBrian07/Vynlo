@@ -9,8 +9,10 @@ Vynlo's initial release handles personal email references and user-authored note
 - Account-scoped queries and mutations check account ownership. Numeric Gmail account slots are never database namespaces. This prevents accidental cross-account association; it is not cryptographic authentication of page-provided identities.
 - Saved links are restricted to the expected Gmail origin, account query and thread hash before opening. Imported backups receive schema, length, duplicate-ID and relationship validation.
 - Snippets resolve to plain text. Composer insertion uses Chromium's native text-editing command; it does not parse template text as HTML or activate Gmail's Send control.
-- The production extension-page CSP permits only packaged scripts and blocks network connections. Content scripts do not load executable remote code. Development tooling may use a local development server; audit the production package separately.
+- The production extension-page CSP permits only packaged scripts and allows connections only to local `http://127.0.0.1:11434` for optional inference. Requests use fixed endpoints, omit credentials/referrers, reject redirects, enforce size/deadline bounds and validate model decisions. Loopback access requires an optional host permission; AI is separately off by default. Content scripts do not load executable remote code. Development tooling may use a local development server; audit the production package separately.
 - Database operations use transactions. A settings journal recovers interrupted cross-storage imports. Alarms are reconstructed from durable reminder records.
+
+Model decisions are untrusted suggestions and never send, archive, move or relabel Gmail messages. Manual corrections and cleared data take precedence over delayed inference. A local process impersonating Ollama or altered model weights can produce false decisions; local model naming is not cryptographic weight verification.
 
 ## Limits of protection
 
@@ -20,7 +22,7 @@ Notification delivery is best-effort. Persisting the attempt before calling Chro
 
 ## Review before release
 
-1. Inspect the generated manifest. Require only `storage`, `alarms` and `notifications`; keep content matches limited to Gmail.
+1. Inspect the generated manifest. Require only `storage`, `alarms` and `notifications`; keep content matches limited to Gmail. The only optional host permission is loopback HTTP for local inference.
 2. Search source and built code for network clients, remote script URLs, HTML insertion, page-main-world execution and message forwarding. Investigate each occurrence rather than assuming a keyword scan proves safety.
 3. Run invalid-sender, invalid-import, malicious-snippet, stale-identity and cross-account tests.
 4. Test import failure/retry and reminder restart behavior. Verify errors do not erase valid records.

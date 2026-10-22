@@ -2,7 +2,7 @@
 
 Email, without the friction.
 
-Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, follow-up reminders, snippets and contact notes to Gmail. Your records stay in your browser profile. There is no Vynlo account, server, subscription or AI service.
+Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, follow-up reminders, snippets and contact notes to Gmail. Your records stay in your browser profile. There is no Vynlo account, hosted server or subscription. Optional local AI can suggest email categories.
 
 **Compatibility preview:** the first version supports a deliberately narrow Gmail identity path. Tracking requires a visible conversation heading corroborated against its URL. Both legacy hexadecimal routes and a restricted modern `f` token format are supported when the visible identifiers agree; draft tokens, unknown formats and ambiguous views are disabled. Vynlo disables tracking when it cannot establish identity. Automated fixtures do not establish live Gmail compatibility; see the [compatibility checklist](docs/GMAIL_COMPATIBILITY.md) before relying on this release.
 
@@ -14,9 +14,10 @@ Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, 
 - Open a searchable command palette and use configurable keyboard shortcuts.
 - Save categorized snippets, fill variables such as `{{first_name}}` and insert plain text into a supported Gmail composer. A new install includes starter templates you can edit or delete.
 - Keep contact notes and tags under each Gmail account.
+- Categorize opened conversations with manual tags or optional local Tev1 0.8B suggestions. AI starts off and suggestions need review; see [setup and evaluation](docs/CLASSIFICATION.md).
 - Choose light, dark or automatic themes; export, import or clear local data in settings.
 
-Vynlo never sends email. Waiting means you manually marked the conversation; reminders do not prove that no reply has arrived. Snippets are shared across your local Vynlo workspace; conversations, reminders and contacts are account-scoped.
+Vynlo never sends email. Waiting means you manually marked the conversation; reminders do not prove that no reply has arrived. Snippets are shared across your local Vynlo workspace; conversations, reminders, email tags and contacts are account-scoped.
 
 ## Install locally
 
@@ -56,7 +57,7 @@ For snippets, focus the intended Gmail draft, then open Vynlo's snippet picker u
 
 Shortcuts deliberately do not fire while typing in an input or composer, preserving Gmail's link-insertion command. Change bindings in settings if another extension or browser shortcut conflicts. The command palette uses arrow keys, Enter and Escape. It also opens from inside the workspace. Mark Waiting/Resolved shortcuts update the thread with a brief confirmation, without forcing the dashboard open.
 
-Backups contain all accounts, snippets, contact notes, conversations, reminders and settings. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; files are readable JSON, not encrypted archives.
+Backups contain all accounts, snippets, contact notes, conversations, reminders, email tags and settings. Local AI opt-in is excluded from backups. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; files are readable JSON, not encrypted archives.
 
 ## Development
 
@@ -74,7 +75,7 @@ The stack is TypeScript, React, WXT/Vite, Tailwind CSS, Lucide and Zustand. Stru
 
 ## Privacy and limits
 
-Vynlo reads the visible Gmail structures needed to identify the current account, supported thread and composer. It stores minimal conversation references and user-created data. It does not read entire mailboxes, store message bodies or attachments, intercept Gmail traffic, request OAuth or transmit records to a server.
+Vynlo reads the visible Gmail structures needed to identify the current account, supported thread and composer. It stores minimal conversation references and user-created data. It does not read entire mailboxes, store message bodies or attachments, intercept Gmail traffic, request OAuth or transmit records to a hosted service. If explicitly enabled, subject-only AI classification uses your local Ollama at 127.0.0.1:11434.
 
 Local data is **not encrypted by Vynlo**. Anyone with access to your browser profile may be able to read it. Export files and text you insert into Gmail need the same care as other personal documents. Normal Gmail behavior, including syncing a draft you edit, remains controlled by Google.
 

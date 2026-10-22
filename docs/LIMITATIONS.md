@@ -36,3 +36,11 @@ Automatic theme detection uses page background luminance and an OS fallback; Gma
 ## Release status
 
 The project includes a build and automated validation workflow. A configured workflow is not evidence that it ran on GitHub. A ZIP is not evidence of store approval. Authenticated Gmail validation, final screenshots, a public repository/support URL and publisher review remain separate release gates.
+
+## Experimental email classification
+
+Tags are Vynlo records, not native Gmail labels. Optional Tev1 0.8B inference uses only the subject of a supported conversation as you open it. It cannot categorize the unopened mailbox, identify replies or disambiguate context absent from a subject. All model tags remain unreviewed until explicitly confirmed; score concentration is not measured accuracy.
+
+No actual Tev1 email-quality results are available from this environment: Ollama and its weights are absent, and shell DNS cannot reach model download hosts. The 120-example synthetic evaluation runner is included and refuses to fabricate results when setup is unavailable. Production approval requires independent representative evaluation and live-browser validation. See [classification](CLASSIFICATION.md).
+
+Database version 2 adds an account-indexed tag store without deleting version-one data. JSON schema version 1 adds optional `emailTags` for older backups. Older Vynlo releases may ignore tags on import; preserve an original backup when moving between versions. Classification consent is never imported.

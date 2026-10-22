@@ -45,4 +45,4 @@ The full-page view uses a smaller brand lockup, understated account/status selec
 
 ## Gmail launcher
 
-The floating Gmail control uses only the 20px brand mark, with 28px icon buttons for opening the workspace, optional conversation tracking and commands. It has no wordmark or duplicate dashboard icon. Its CSS height is 36px; the larger logo lockups remain in the workspace and popup. Accessible action names and descriptive tooltips are retained.
+The floating Gmail control keeps the original launcher layout and sizing: a 28px icon, the regular text label “Vynlo”, the dashboard icon and the command control. Only the original purple tile is replaced with the navy/mint mark. The outlined SVG wordmark belongs in the workspace and popup, not the launcher. A launcher-scoped rule hides older SVG lockups so mismatched cached markup cannot overflow the small control.

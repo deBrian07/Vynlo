@@ -285,10 +285,14 @@ export function createBackgroundHandler({
               'reminders',
               'contacts',
               'snippets',
+              'emailTags',
             ] as const) {
               // Merge without replacing local records. Re-importing a backup is idempotent.
               const ids = new Set(records[key].map((row) => row.id));
-              const merged = [...records[key], ...backup[key].filter((row) => !ids.has(row.id))];
+              const merged = [
+                ...records[key],
+                ...(backup[key] ?? []).filter((row) => !ids.has(row.id)),
+              ];
               Object.assign(records, { [key]: merged });
             }
             for (const r of records.reminders)

@@ -1,17 +1,27 @@
+import type { TaggedConversation } from '../../features/classification/model';
 import type { Account, Contact, Conversation, Reminder, Snippet } from '../../types/model';
 import { DEFAULT_SETTINGS } from '../../types/model';
 import { validBackup } from '../validation';
 
 export interface Records {
+  emailTags: TaggedConversation[];
   accounts: Account[];
   conversations: Conversation[];
   reminders: Reminder[];
   contacts: Contact[];
   snippets: Snippet[];
 }
-const TABLES = ['accounts', 'conversations', 'reminders', 'contacts', 'snippets'] as const;
-export const DATABASE_VERSION = 1;
+const TABLES = [
+  'accounts',
+  'conversations',
+  'reminders',
+  'contacts',
+  'snippets',
+  'emailTags',
+] as const;
+export const DATABASE_VERSION = 2;
 export const emptyRecords = (): Records => ({
+  emailTags: [],
   accounts: [],
   conversations: [],
   reminders: [],
@@ -48,7 +58,7 @@ export class VynloDatabase {
         for (const name of TABLES) {
           if (!request.result.objectStoreNames.contains(name)) {
             const store = request.result.createObjectStore(name, { keyPath: 'id' });
-            if (['conversations', 'contacts', 'reminders'].includes(name))
+            if (['conversations', 'contacts', 'reminders', 'emailTags'].includes(name))
               store.createIndex('accountId', 'accountId');
             if (name === 'reminders') store.createIndex('conversationId', 'conversationId');
           }

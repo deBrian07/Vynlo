@@ -1,3 +1,4 @@
+import type { TaggedConversation } from '../features/classification/model';
 export const STATUSES = ['needs-reply', 'waiting', 'follow-up', 'resolved'] as const;
 export type Status = (typeof STATUSES)[number];
 export const STATUS_LABELS: Record<Status, string> = {
@@ -90,6 +91,8 @@ export const DEFAULT_SETTINGS: Settings = {
   onboarded: false,
 };
 export interface Snapshot {
+  /** Optional for backward-compatible version-one backups. */
+  emailTags?: TaggedConversation[];
   accounts: Account[];
   conversations: Conversation[];
   reminders: Reminder[];

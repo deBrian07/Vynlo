@@ -1,3 +1,4 @@
+import { isCategory, MODEL, type TaggedConversation } from '../features/classification/model';
 import { STATUSES, type Backup, type Settings } from '../types/model';
 import type { Request } from '../types/messages';
 
@@ -31,7 +32,7 @@ export function safeConversationUrl(value: unknown, accountId: string, threadId:
     return false;
   }
 }
-const ref = (v: unknown) =>
+export const validConversationRef = (v: unknown) =>
   object(v) &&
   isAccountId(v.accountId) &&
   isThreadId(v.threadId) &&
@@ -95,7 +96,11 @@ export function validRequest(v: unknown): v is Request {
     case 'snapshot':
       return v.accountId === undefined || isAccountId(v.accountId);
     case 'track':
-      return ref(v.ref) && status(v.status) && (v.note === undefined || text(v.note, 10000));
+      return (
+        validConversationRef(v.ref) &&
+        status(v.status) &&
+        (v.note === undefined || text(v.note, 10000))
+      );
     case 'untrack':
     case 'delete-contact':
       return isAccountId(v.accountId) && id(v.id);
@@ -130,6 +135,26 @@ export function validRequest(v: unknown): v is Request {
       return false;
   }
 }
+export function validEmailTag(v: unknown): v is TaggedConversation {
+  return (
+    object(v) &&
+    validConversationRef(v) &&
+    v.id === conversationId(String(v.accountId), String(v.threadId)) &&
+    isCategory(v.category) &&
+    times(v) &&
+    ((v.source === 'manual' &&
+      v.reviewed === true &&
+      v.model === undefined &&
+      v.confidence === undefined) ||
+      (v.source === 'model' &&
+        v.model === MODEL &&
+        v.reviewed === false &&
+        typeof v.confidence === 'number' &&
+        Number.isFinite(v.confidence) &&
+        v.confidence >= 0 &&
+        v.confidence <= 1))
+  );
+}
 export function validBackup(v: unknown): v is Backup {
   if (!object(v) || v.schemaVersion !== 1 || !number(v.exportedAt) || !validSettings(v.settings))
     return false;
@@ -149,13 +174,21 @@ export function validBackup(v: unknown): v is Backup {
   if (
     !conversations.every(
       (c) =>
-        ref(c) &&
+        validConversationRef(c) &&
         accountIds.has(c.accountId) &&
         c.id === conversationId(String(c.accountId), String(c.threadId)) &&
         status(c.status) &&
         text(c.note) &&
         times(c),
     )
+  )
+    return false;
+  if (
+    v.emailTags !== undefined &&
+    (!Array.isArray(v.emailTags) ||
+      v.emailTags.length > 20000 ||
+      !v.emailTags.every((tag) => validEmailTag(tag) && accountIds.has(tag.accountId)) ||
+      new Set(v.emailTags.map((tag: TaggedConversation) => tag.id)).size !== v.emailTags.length)
   )
     return false;
   const conversationMap = new Map(conversations.map((c) => [c.id, c]));

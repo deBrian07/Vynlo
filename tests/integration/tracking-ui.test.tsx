@@ -236,3 +236,49 @@ describe('tracking activity', () => {
     expect(trackingClient.remove).toHaveBeenCalledWith(account, record().id);
   });
 });
+
+it('keeps technical fields behind manual setup and confirms a chosen connection file', async () => {
+  render(<TrackingSettings />);
+  const file = await screen.findByLabelText('Import connection file');
+  expect(screen.getByLabelText('Worker URL')).not.toBeVisible();
+  expect(screen.getByLabelText('Connection key')).not.toBeVisible();
+  fireEvent.change(file, {
+    target: {
+      files: [
+        {
+          size: 100,
+          text: async () =>
+            JSON.stringify({
+              endpoint: 'https://vynlo.example.workers.dev',
+              secret: 'a'.repeat(64),
+            }),
+        },
+      ],
+    },
+  });
+  expect(await screen.findByRole('status')).toHaveTextContent('Connection file ready');
+  expect(screen.getByRole('button', { name: 'Connect tracking' })).toBeDisabled();
+  expect(trackingClient.connect).not.toHaveBeenCalled();
+});
+
+it('gives disconnected users a direct route to settings', async () => {
+  const onSettings = vi.fn();
+  render(<TrackingActivity accountId={account} onSettings={onSettings} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Connect in Settings' }));
+  expect(onSettings).toHaveBeenCalledOnce();
+});
+
+it('explains the next step beside paused drafts and distinguishes expired tracking', async () => {
+  vi.mocked(trackingClient.snapshot).mockResolvedValue(snapshot([{ ...record(), armedAt: null }]));
+  const view = render(<TrackingActivity accountId={account} />);
+  await screen.findByText('Next: send this draft in Gmail, then confirm below.');
+  expect(screen.getByRole('button', { name: 'I’ve sent this' })).toBeVisible();
+  expect(screen.getByText(/Sending not verified/)).not.toBeVisible();
+  view.unmount();
+  vi.mocked(trackingClient.snapshot).mockResolvedValue(
+    snapshot([{ ...record(), armedAt: null, expiresAt: Date.now() - 1 }]),
+  );
+  render(<TrackingActivity accountId={account} />);
+  expect(await screen.findByText('Tracking expired')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'I’ve sent this' })).not.toBeInTheDocument();
+});

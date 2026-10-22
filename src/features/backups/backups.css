@@ -117,3 +117,15 @@
     padding: 16px;
   }
 }
+.backup-panel button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.backup-card > .muted {
+  margin-top: 10px;
+}
+.backup-card > .backup-meta {
+  margin-top: 12px;
+}

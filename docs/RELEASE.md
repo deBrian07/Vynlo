@@ -61,14 +61,15 @@ Publish this draft only after filling the support/privacy links and validating t
 
 ## Permission explanations and data disclosure
 
-| Permission/access           | Store explanation                                                                                                      |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `storage`                   | Save local preferences and coordinate extension views. Structured user records use extension-owned IndexedDB.          |
-| `alarms`                    | Wake the extension to process scheduled follow-up reminders and recover overdue work.                                  |
-| `notifications`             | Show optional generic desktop reminders requested by the user.                                                         |
-| Gmail content-script access | Display controls in Gmail, identify the supported current account/thread and insert requested plain text into a draft. |
+| Permission/access                  | Store explanation                                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `storage`                          | Save local preferences and coordinate extension views. Structured user records use extension-owned IndexedDB.            |
+| `alarms`                           | Wake the extension to process scheduled follow-up reminders and recover overdue work.                                    |
+| `notifications`                    | Show optional generic desktop reminders requested by the user.                                                           |
+| Optional `https://*.workers.dev/*` | Contact only the exact backup service origin explicitly approved during setup or recovery. No access granted by default. |
+| Gmail content-script access        | Display controls in Gmail, identify the supported current account/thread and insert requested plain text into a draft.   |
 
-The extension handles account/contact email addresses, minimal communication references, user-authored notes/snippets, dates and settings. It does not transmit these to Vynlo or an analytics provider. Do not describe the product as handling no user data merely because processing is local. The current implementation has no browsing-history collection, credentials, OAuth tokens, mailbox body archive, tracking pixels, remote code or automatic sending.
+The extension handles account/contact email addresses, minimal communication references, user-authored notes/snippets, dates and settings. It transmits no plaintext workspace data to a server or analytics provider. Optional backups send ciphertext to the user-selected service. Do not describe the product as handling no user data merely because processing is local. The current implementation has no browsing-history collection, Google credentials, OAuth tokens, mailbox body archive, tracking pixels, remote code or automatic sending.
 
 The publisher must review the dashboard's current disclosure categories and answer them against the submitted build. The [User Data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq) treats local collection/use as data handling; the [Limited Use policy](https://developer.chrome.com/docs/webstore/program-policies/limited-use) constrains purpose and transfer. Review the [privacy policy draft](PRIVACY.md) and publish a stable policy URL. These checks do not constitute store approval.
 

@@ -9,6 +9,7 @@ import {
   ExternalLink,
   BellPlus,
   Command,
+  Eye,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -33,8 +34,9 @@ import { Contacts } from '../features/contacts/Contacts';
 import { SettingsView } from '../features/settings/SettingsView';
 import { Confirm, Loading, Logo, Modal } from './ui';
 import { formatShortcut } from '../features/shortcuts/shortcuts';
+import { TrackingActivity } from '../features/open-tracking/TrackingActivity';
 
-type View = Settings['landingView'] | 'settings';
+type View = Settings['landingView'] | 'settings' | 'open-tracking';
 interface Props {
   context?: GmailContext;
   adapter?: GmailAdapter;
@@ -283,6 +285,7 @@ export default function Workspace({
               { id: 'dashboard', label: 'Conversations', icon: CheckCheck },
               { id: 'snippets', label: 'Snippets', icon: FileText },
               { id: 'contacts', label: 'Contacts', icon: UsersRound },
+              { id: 'open-tracking', label: 'Open tracking', icon: Eye },
               ...(options ? [{ id: 'settings' as const, label: 'Settings', icon: Settings2 }] : []),
             ] satisfies { id: View; label: string; icon: LucideIcon }[]
           ).map((item) => (
@@ -402,6 +405,7 @@ export default function Workspace({
               {view === 'contacts' && (
                 <Contacts contacts={contacts} accountId={accountId} onSave={mutate} />
               )}
+              {view === 'open-tracking' && <TrackingActivity accountId={accountId} />}
               {view === 'settings' && options && (
                 <SettingsView
                   snapshot={data}

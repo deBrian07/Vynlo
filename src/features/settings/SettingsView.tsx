@@ -12,6 +12,7 @@ import { request } from '../../services/client';
 import { validBackup } from '../../services/validation';
 import { validateShortcuts, formatShortcut } from '../shortcuts/shortcuts';
 import { Confirm } from '../../components/ui';
+import { TrackingSettings } from '../open-tracking/TrackingSettings';
 
 function download(data: unknown, name: string) {
   const url = URL.createObjectURL(
@@ -369,6 +370,7 @@ export function SettingsView({
           </button>
         </footer>
       </form>
+      <TrackingSettings />
       <div className="settings-section">
         <h2>Snippets</h2>
         <p className="muted">Templates are available across your Gmail accounts in this browser.</p>

@@ -78,8 +78,8 @@ export function DraftTracking({
         }}
       >
         <p>
-          Add a tiny tracking image to this draft. No message content, recipient or subject is sent
-          to your Worker.
+          Add a tracking image, send in Gmail, then activate tracking. Your email text and
+          recipients stay out of the tracking service.
         </p>
         <label>
           Local name
@@ -91,15 +91,16 @@ export function DraftTracking({
             disabled={busy}
           />
         </label>
-        <p className="muted">
-          After sending through Gmail, open <strong>Open tracking</strong> and choose{' '}
-          <strong>I’ve sent this</strong>. Tracking stays paused until then. Vynlo never sends the
-          email.
-        </p>
-        <p className="muted">
-          Image blockers, proxies and your own views can affect results. An open signal is not proof
-          of a read. You can undo the image insertion with your browser’s undo shortcut.
-        </p>
+        <p className="muted">Only visible to you. Use a name you’ll recognize after sending.</p>
+        <details className="tracking-reliability">
+          <summary>How tracking works</summary>
+          <p className="muted">
+            Tracking stays paused until you choose “I’ve sent this” in Open tracking. Vynlo never
+            sends email. Image blockers, proxies and your own views can affect results; an open
+            signal is not proof of a read. Use your browser’s undo shortcut to remove the inserted
+            image.
+          </p>
+        </details>
         {error && (
           <p className="error-box" role="alert">
             {error}

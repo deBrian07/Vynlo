@@ -232,6 +232,27 @@
   margin-top: 10px;
   font-size: 12px;
 }
+.tracking-next-action {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.tracking-record-details {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 14px;
+}
+.tracking-record-details summary {
+  cursor: pointer;
+}
+.tracking-next-step {
+  flex-wrap: wrap;
+}
+.tracking-next-step button:first-of-type {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .tracking-record .muted {
   margin-top: 5px;
 }

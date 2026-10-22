@@ -146,7 +146,7 @@ export function TrackingSettings() {
                 {fileReady && (
                   <p className="tracking-file-ready" role="status">
                     <CheckCircle2 size={15} />
-                    Connection file ready · {new URL(endpoint).hostname}
+                    Connection file ready · {endpoint.replace(/^https:\/\//, '')}
                   </p>
                 )}
                 <details className="tracking-manual">
@@ -161,7 +161,11 @@ export function TrackingSettings() {
                     autoComplete="off"
                     spellCheck={false}
                     value={endpoint}
-                    onChange={(event) => setEndpoint(event.target.value)}
+                    onChange={(event) => {
+                      setEndpoint(event.target.value);
+                      setFileReady(false);
+                      setConsent(false);
+                    }}
                   />
                   <label htmlFor="tracking-secret">Connection key</label>
                   <input
@@ -174,7 +178,11 @@ export function TrackingSettings() {
                     required
                     autoComplete="off"
                     value={secret}
-                    onChange={(event) => setSecret(event.target.value)}
+                    onChange={(event) => {
+                      setSecret(event.target.value);
+                      setFileReady(false);
+                      setConsent(false);
+                    }}
                     aria-describedby="tracking-key-help"
                   />
                   <small id="tracking-key-help" className="muted">

@@ -69,7 +69,7 @@ export function TrackingActivity({
       <header className="tracking-activity-header">
         <div>
           <h2 id="tracking-activity-title">Open activity</h2>
-          <p className="muted">For drafts you chose to track in this account.</p>
+          <p className="muted">Your tracked drafts. Choose Refresh to check for opens.</p>
         </div>
         <button
           type="button"
@@ -144,13 +144,19 @@ export function TrackingActivity({
                 className={`tracking-open-state ${record.armedAt !== null && record.firstOpenedAt !== null ? 'is-opened' : ''}`}
               >
                 <Eye size={14} aria-hidden="true" />
-                {record.armedAt === null
-                  ? 'Draft · not activated'
-                  : record.firstOpenedAt !== null
-                    ? 'Open detected'
-                    : 'No open detected'}
+                {record.expiresAt <= Date.now()
+                  ? 'Tracking expired'
+                  : record.armedAt === null
+                    ? 'Draft · not activated'
+                    : record.firstOpenedAt !== null
+                      ? 'Open detected'
+                      : 'No open detected'}
               </p>
-              <p className="muted">Draft created {date(record.createdAt)} · Sending not verified</p>
+              {record.armedAt === null && record.expiresAt > Date.now() && (
+                <p className="tracking-next-action">
+                  Next: send this draft in Gmail, then confirm below.
+                </p>
+              )}
               {record.armedAt === null && record.expiresAt > Date.now() && (
                 <button
                   type="button"
@@ -160,21 +166,27 @@ export function TrackingActivity({
                   I’ve sent this
                 </button>
               )}
-              {record.armedAt !== null && (
-                <p className="muted">Tracking activated {date(record.armedAt)}</p>
-              )}
-              {record.armedAt !== null && record.firstOpenedAt !== null && (
+              <details className="tracking-record-details">
+                <summary>Activity details</summary>
                 <p className="muted">
-                  First detected {date(record.firstOpenedAt)}
-                  {record.lastOpenedAt !== null && record.lastOpenedAt !== record.firstOpenedAt
-                    ? ` · Latest ${date(record.lastOpenedAt)}`
-                    : ''}{' '}
-                  · {record.openCount} image {record.openCount === 1 ? 'load' : 'loads'}
+                  Draft created {date(record.createdAt)} · Sending not verified
                 </p>
-              )}
-              <p className="muted">
-                {record.expiresAt <= Date.now() ? 'Expired' : 'Expires'} {date(record.expiresAt)}
-              </p>
+                {record.armedAt !== null && (
+                  <p className="muted">Tracking activated {date(record.armedAt)}</p>
+                )}
+                {record.armedAt !== null && record.firstOpenedAt !== null && (
+                  <p className="muted">
+                    First detected {date(record.firstOpenedAt)}
+                    {record.lastOpenedAt !== null && record.lastOpenedAt !== record.firstOpenedAt
+                      ? ` · Latest ${date(record.lastOpenedAt)}`
+                      : ''}{' '}
+                    · {record.openCount} image {record.openCount === 1 ? 'load' : 'loads'}
+                  </p>
+                )}
+                <p className="muted">
+                  {record.expiresAt <= Date.now() ? 'Expired' : 'Expires'} {date(record.expiresAt)}
+                </p>
+              </details>
             </li>
           ))}
         </ul>

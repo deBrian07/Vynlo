@@ -54,6 +54,13 @@ export interface Snippet {
   updatedAt: number;
 }
 export type ShortcutAction = 'palette' | 'dashboard' | 'waiting' | 'resolved' | 'snippets';
+export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
+  palette: 'Command palette',
+  dashboard: 'Dashboard',
+  waiting: 'Mark waiting',
+  resolved: 'Mark resolved',
+  snippets: 'Snippets',
+};
 export interface Settings {
   theme: 'system' | 'light' | 'dark';
   enabled: boolean;
@@ -76,8 +83,8 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {
     palette: 'Mod+K',
     dashboard: 'Mod+Shift+Y',
-    waiting: '',
-    resolved: '',
+    waiting: 'Mod+Shift+U',
+    resolved: 'Mod+Shift+E',
     snippets: 'Mod+Shift+Period',
   },
   onboarded: false,

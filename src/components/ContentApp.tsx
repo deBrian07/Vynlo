@@ -5,6 +5,7 @@ import { getSnapshot, request } from '../services/client';
 import { conversationId } from '../services/validation';
 import {
   DEFAULT_SETTINGS,
+  SHORTCUT_LABELS,
   STATUS_LABELS,
   STATUSES,
   type GmailContext,
@@ -282,7 +283,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
           <dl className="shortcut-list">
             {Object.entries(settings.shortcuts).map(([key, value]) => (
               <div key={key}>
-                <dt>{key}</dt>
+                <dt>{SHORTCUT_LABELS[key as ShortcutAction]}</dt>
                 <dd>
                   <kbd>{formatShortcut(value)}</kbd>
                 </dd>

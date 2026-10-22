@@ -4,8 +4,12 @@ import {
   matchShortcut,
   validateShortcuts,
 } from '../../src/features/shortcuts/shortcuts';
+import { DEFAULT_SETTINGS } from '../../src/types/model';
 
 describe('keyboard shortcuts', () => {
+  it('accepts the default bindings', () => {
+    expect(validateShortcuts(DEFAULT_SETTINGS.shortcuts)).toEqual({});
+  });
   it('matches exact platform modifiers and physical punctuation codes', () => {
     expect(
       matchShortcut(

@@ -50,6 +50,8 @@ For snippets, focus the intended Gmail draft, then open Vynlo's snippet picker u
 | --------------- | ----------- | ------------- |
 | Command palette | Cmd+K       | Ctrl+K        |
 | Dashboard       | Cmd+Shift+Y | Ctrl+Shift+Y  |
+| Mark waiting    | Cmd+Shift+U | Ctrl+Shift+U  |
+| Mark resolved   | Cmd+Shift+E | Ctrl+Shift+E  |
 | Snippets        | Cmd+Shift+. | Ctrl+Shift+.  |
 
 Shortcuts deliberately do not fire while typing in an input or composer, preserving Gmail's link-insertion command. Change bindings in settings if another extension or browser shortcut conflicts. The command palette uses arrow keys, Enter and Escape.

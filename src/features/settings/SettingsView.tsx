@@ -1,6 +1,12 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { Download, Upload, ShieldCheck } from 'lucide-react';
-import { DEFAULT_SETTINGS, type Backup, type Settings, type Snapshot } from '../../types/model';
+import {
+  DEFAULT_SETTINGS,
+  SHORTCUT_LABELS,
+  type Backup,
+  type Settings,
+  type Snapshot,
+} from '../../types/model';
 import type { Request } from '../../types/messages';
 import { request } from '../../services/client';
 import { validBackup } from '../../services/validation';
@@ -205,7 +211,7 @@ export function SettingsView({
           <div className="shortcut-fields">
             {(Object.keys(draft.shortcuts) as (keyof Settings['shortcuts'])[]).map((key) => (
               <div className="shortcut-editor" key={key}>
-                <label htmlFor={`shortcut-${key}`}>{key}</label>
+                <label htmlFor={`shortcut-${key}`}>{SHORTCUT_LABELS[key]}</label>
                 <input
                   id={`shortcut-${key}`}
                   aria-label={`${key} shortcut`}

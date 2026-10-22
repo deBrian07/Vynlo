@@ -51,7 +51,7 @@ export function TrackingActivity({ accountId }: { accountId?: string }) {
     } catch {
       if (activeAccount.current === account)
         setError(
-          'Could not refresh. Check your connection and tracking settings, then try again. Your saved activity is unchanged.',
+          'Could not refresh. Check your connection and tracking settings, then try again. Previously loaded activity is still shown.',
         );
     } finally {
       executing.current = false;
@@ -84,6 +84,12 @@ export function TrackingActivity({ accountId }: { accountId?: string }) {
           {error}
         </p>
       )}
+      {accountId && snapshot && !snapshot.connected && (
+        <p className="tracking-disclosure">
+          Disconnected. Saved history is shown below. Reconnect in Settings to refresh opens; you
+          can still delete entries to stop their images if Chrome retains access to the Worker.
+        </p>
+      )}
       {!accountId ? (
         <p className="tracking-empty">Open a supported Gmail account to see its activity.</p>
       ) : !snapshot ? (
@@ -92,10 +98,6 @@ export function TrackingActivity({ accountId }: { accountId?: string }) {
             Loading activity…
           </p>
         )
-      ) : !snapshot.connected ? (
-        <p className="tracking-empty">
-          Connect your optional tracking service in Settings to check for opens.
-        </p>
       ) : records.length === 0 ? (
         <div className="tracking-empty">
           <Eye size={24} aria-hidden="true" />

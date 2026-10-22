@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react';
 import { CheckCircle2, Link2, LockKeyhole, Unplug } from 'lucide-react';
 import { Confirm } from '../../components/ui';
 import { trackingClient } from './client';
-import type { TrackingSnapshot } from './types';
+import { workerEndpoint, type TrackingSnapshot } from './types';
 import './tracking.css';
 
 export function TrackingSettings() {
@@ -30,6 +30,37 @@ export function TrackingSettings() {
       alive = false;
     };
   }, []);
+
+  async function importConnection(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || busy) return;
+    setError('');
+    try {
+      if (file.size > 4096) throw new Error('Invalid file');
+      const value: unknown = JSON.parse(await file.text());
+      if (!value || typeof value !== 'object' || Array.isArray(value))
+        throw new Error('Invalid file');
+      const data = value as Record<string, unknown>;
+      if (
+        Object.keys(data).sort().join(',') !== 'endpoint,secret' ||
+        typeof data.endpoint !== 'string' ||
+        typeof data.secret !== 'string' ||
+        !/^[a-zA-Z0-9_-]{32,256}$/.test(data.secret)
+      )
+        throw new Error('Invalid file');
+      const validatedEndpoint = workerEndpoint(data.endpoint);
+      setEndpoint(validatedEndpoint);
+      setSecret(data.secret);
+      setConsent(false);
+      endpointInput.current?.focus();
+    } catch {
+      setError(
+        'Choose the connection.json file created by Vynlo setup (up to 4 KB). No connection was made.',
+      );
+    }
+  }
 
   async function connect(event: FormEvent) {
     event.preventDefault();
@@ -121,6 +152,19 @@ export function TrackingSettings() {
             </details>
             <form className="tracking-connect-form" onSubmit={(event) => void connect(event)}>
               <fieldset disabled={busy}>
+                <label className="file-button tracking-import">
+                  Import connection file
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    aria-label="Import connection file"
+                    onChange={(event) => void importConnection(event)}
+                  />
+                </label>
+                <small className="muted">
+                  Choose connection.json from setup, or enter the details below. Importing fills
+                  this form only.
+                </small>
                 <label htmlFor="tracking-endpoint">Worker URL</label>
                 <input
                   ref={endpointInput}
@@ -137,6 +181,10 @@ export function TrackingSettings() {
                 <input
                   id="tracking-secret"
                   type="password"
+                  minLength={32}
+                  maxLength={256}
+                  pattern="[a-zA-Z0-9_-]{32,256}"
+                  title="Use the 32–256 character connection key from setup."
                   required
                   autoComplete="off"
                   value={secret}
@@ -180,8 +228,8 @@ export function TrackingSettings() {
           }}
         >
           This removes the connection key from this browser. Existing tracking images keep working
-          until their 30-day expiry. To stop an individual image sooner, cancel and delete its
-          activity entry while connected.
+          until their 30-day expiry. To stop an individual image sooner, delete its activity entry
+          in Open tracking. Chrome must retain access to that Worker.
         </Confirm>
       )}
     </section>

@@ -52,16 +52,69 @@ describe('optional tracking connection', () => {
     fireEvent.change(screen.getByLabelText('Worker URL'), {
       target: { value: 'https://vynlo.example.workers.dev' },
     });
-    fireEvent.change(screen.getByLabelText('Connection key'), { target: { value: 'private-key' } });
+    fireEvent.change(screen.getByLabelText('Connection key'), {
+      target: { value: 'private-key-012345678901234567890123456789' },
+    });
     fireEvent.click(screen.getByRole('checkbox'));
     vi.mocked(trackingClient.snapshot).mockResolvedValue(snapshot());
     fireEvent.click(connect);
     await screen.findByText('Connected');
     expect(trackingClient.connect).toHaveBeenCalledWith(
       'https://vynlo.example.workers.dev',
-      'private-key',
+      'private-key-012345678901234567890123456789',
     );
-    expect(screen.queryByDisplayValue('private-key')).not.toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue('private-key-012345678901234567890123456789'),
+    ).not.toBeInTheDocument();
+  });
+  it('imports connection details without connecting or granting consent', async () => {
+    render(<TrackingSettings />);
+    const input = await screen.findByLabelText('Import connection file');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.change(input, {
+      target: {
+        files: [
+          {
+            size: 100,
+            text: async () =>
+              JSON.stringify({
+                endpoint: 'https://vynlo.example.workers.dev',
+                secret: '0123456789abcdef0123456789abcdef',
+              }),
+          },
+        ],
+      },
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText('Worker URL')).toHaveValue('https://vynlo.example.workers.dev'),
+    );
+    expect(screen.getByLabelText('Connection key')).toHaveAttribute('type', 'password');
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Connect tracking' })).toBeDisabled();
+    expect(trackingClient.connect).not.toHaveBeenCalled();
+  });
+  it('rejects oversized or invalid connection files without exposing their contents', async () => {
+    render(<TrackingSettings />);
+    const input = await screen.findByLabelText('Import connection file');
+    fireEvent.change(input, { target: { files: [{ size: 5000, text: vi.fn() }] } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('up to 4 KB');
+    fireEvent.change(input, {
+      target: {
+        files: [
+          {
+            size: 100,
+            text: async () =>
+              JSON.stringify({
+                endpoint: 'https://unexpected.example',
+                secret: 'private-file-contents',
+              }),
+          },
+        ],
+      },
+    });
+    await waitFor(() => expect(screen.getByLabelText('Worker URL')).toHaveValue(''));
+    expect(screen.getByLabelText('Connection key')).toHaveValue('');
+    expect(trackingClient.connect).not.toHaveBeenCalled();
   });
   it('keeps failed connection editable and never renders server error content', async () => {
     vi.mocked(trackingClient.connect).mockRejectedValue(new Error('secret-request-content'));
@@ -70,7 +123,9 @@ describe('optional tracking connection', () => {
     fireEvent.change(screen.getByLabelText('Worker URL'), {
       target: { value: 'https://vynlo.example.workers.dev' },
     });
-    fireEvent.change(screen.getByLabelText('Connection key'), { target: { value: 'private-key' } });
+    fireEvent.change(screen.getByLabelText('Connection key'), {
+      target: { value: 'private-key-012345678901234567890123456789' },
+    });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Connect tracking' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Check the Worker URL');
@@ -138,6 +193,20 @@ describe('tracking activity', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activate tracking' }));
     await screen.findByText('No open detected');
     expect(trackingClient.activate).toHaveBeenCalledWith(account, draft.id);
+  });
+  it('keeps disconnected history visible and permits confirmed deletion', async () => {
+    vi.mocked(trackingClient.snapshot).mockResolvedValue({
+      ...snapshot([record()]),
+      connected: false,
+    });
+    render(<TrackingActivity accountId={account} />);
+    await screen.findByText(record().label);
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: `Delete tracking for ${record().label}` }));
+    vi.mocked(trackingClient.snapshot).mockResolvedValue({ connected: false, records: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete tracking' }));
+    await screen.findByText('No tracked drafts yet');
+    expect(trackingClient.remove).toHaveBeenCalledWith(account, record().id);
   });
   it('hides prior account activity immediately during an account switch', async () => {
     vi.mocked(trackingClient.snapshot).mockResolvedValue(snapshot([record()]));

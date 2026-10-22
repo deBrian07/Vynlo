@@ -15,6 +15,8 @@ Acceptance: a clean install can restore core records/settings/reminders from a v
 
 Vynlo enhances Gmail locally. The initial release includes P0 and P1; automatic reply detection and all other P2 work remain out of scope.
 
+Implementation tasks 1–6 above are complete in this branch. The executed checks and explicit live-browser/deployment release gates are recorded in [BACKUP_VALIDATION.md](BACKUP_VALIDATION.md). Automatic backups remain optional and disabled on a fresh install.
+
 ## Milestones and gates
 
 | Milestone             | Tasks                                                                      | Acceptance                                                                                           | Status                                                                             |

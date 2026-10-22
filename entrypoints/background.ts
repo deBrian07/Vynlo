@@ -89,7 +89,7 @@ export default defineBackground(() => {
           typeof type === 'string' &&
           !['snapshot', 'export', 'open', 'options', 'clear'].includes(type)
         )
-          await backups.changed();
+          await backups.changed().catch(() => undefined);
         return response;
       })
       .then(respond)

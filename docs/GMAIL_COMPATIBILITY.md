@@ -8,7 +8,7 @@ Reviewed on 2026-10-21:
 
 - [InboxSDK's GmailThreadView source](https://github.com/InboxSDK/InboxSDK/blob/master/src/platform-implementation-js/dom-driver/gmail/views/gmail-thread-view.ts) reads `data-thread-perm-id` and `data-legacy-thread-id` from a thread identity element. Its asynchronous fallback depends on other SDK infrastructure that Vynlo does not use.
 - [A Gmail permalink userscript author's May 2026 live observations](https://gist.github.com/jamezpolley/6db9635f1dbd093290e78d09a5bda7f8) identify a heading with both attributes and the `[gh="mtb"]` toolbar. Vynlo independently implements a narrower selector restricted to visible headings within Gmail's main region.
-- [Google account control example](https://gist.github.com/daniel-barrows/93864da22cc017723a344b684f38fbb5) demonstrates the account email in the Google Account accessibility label. Vynlo requires the explicit control prefix and exactly one email; it never scans all arbitrary email addresses or uses the numeric account slot as identity.
+- [Google account control example](https://gist.github.com/daniel-barrows/93864da22cc017723a344b684f38fbb5) demonstrates the account email in the Google Account accessibility label. Vynlo requires the explicit control prefix, a top banner outside the mail region and exactly one email; it never scans all arbitrary email addresses or uses the numeric account slot as identity.
 
 These are private DOM details, not an official Gmail extension API. They establish feasibility, not verification against a signed-in Gmail session. All repository fixtures use invented accounts and content.
 

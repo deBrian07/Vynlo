@@ -40,7 +40,12 @@ describe('Gmail identity proof', () => {
     expect(adapter.getContext().conversation).toBeNull();
   });
   it('fails closed for unsupported opaque URLs and inbox or stale SPA headings', () => {
-    for (const hash of ['#inbox/FMfcgzQXymQ', '#inbox', `#all/${THREAD_B}`]) {
+    for (const hash of [
+      '#inbox/FMfcgzQXymQ',
+      '#inbox',
+      `#settings/${THREAD_A}`,
+      `#all/${THREAD_B}`,
+    ]) {
       history.replaceState({}, '', `/${hash}`);
       expect(adapter.getContext().conversation).toBeNull();
     }

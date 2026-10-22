@@ -41,7 +41,7 @@ export class GmailAdapter {
       .map((email) => email.toLowerCase());
     const unique = [...new Set(candidates)];
     if (unique.length !== 1) return null;
-    const email = unique[0];
+    const email = unique[0]!;
     const path = this.win.location.pathname;
     if (this.previousPath && path !== this.previousPath && email === this.previousAccount) {
       this.pendingPath = path;
@@ -61,7 +61,7 @@ export class GmailAdapter {
       const channels = color.match(/[\d.]+/g)?.map(Number);
       if (!channels || channels.length < 3 || (channels.length === 4 && channels[3] === 0))
         continue;
-      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722 < 128
+      return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722 < 128
         ? 'dark'
         : 'light';
     }
@@ -86,7 +86,7 @@ export class GmailAdapter {
     ).filter((el) => this.visible(el));
     if (headings.length !== 1)
       return { ...base, reason: 'Open a single supported Gmail conversation to track it.' };
-    const heading = headings[0];
+    const heading = headings[0]!;
     const thread = (heading.getAttribute('data-legacy-thread-id') ?? '').toLowerCase();
     const permanent = heading.getAttribute('data-thread-perm-id') ?? '';
     if (!HEX_THREAD.test(thread) || !/^#?thread-[fa]:\d+$/.test(permanent))
@@ -105,7 +105,16 @@ export class GmailAdapter {
     // Corroborate the active DOM against the route. Never bind an old SPA heading to a new route.
     const route = this.win.location.hash.slice(1).split('/');
     const token = route.at(-1) ?? '';
-    if (route.length < 2 || !HEX_THREAD.test(token) || token.toLowerCase() !== thread)
+    const supportedRoute =
+      /^(all|inbox|sent|drafts|starred|important|spam|trash|snoozed|search|label|category)$/.test(
+        route[0] ?? '',
+      );
+    if (
+      !supportedRoute ||
+      route.length < 2 ||
+      !HEX_THREAD.test(token) ||
+      token.toLowerCase() !== thread
+    )
       return {
         ...base,
         reason:
@@ -127,7 +136,7 @@ export class GmailAdapter {
     const bars = Array.from(
       this.doc.querySelectorAll<HTMLElement>(`${selectors.main} ${selectors.toolbar}`),
     ).filter((el) => this.visible(el));
-    return bars.length === 1 ? bars[0] : null;
+    return bars.length === 1 ? bars[0]! : null;
   }
 
   findActiveComposer(): HTMLElement | null {
@@ -138,7 +147,7 @@ export class GmailAdapter {
     const editors = Array.from(this.doc.querySelectorAll<HTMLElement>(selectors.composer)).filter(
       (el) => this.visible(el),
     );
-    return editors.length === 1 ? editors[0] : null;
+    return editors.length === 1 ? editors[0]! : null;
   }
 
   captureComposer(): void {
@@ -214,7 +223,9 @@ export class GmailAdapter {
 
   subscribe(listener: (context: GmailContext) => void): () => void {
     this.listeners.add(listener);
-    listener(this.getContext());
+    const context = this.getContext();
+    this.lastContext = JSON.stringify(context);
+    listener(context);
     if (!this.observer) {
       this.observer = new MutationObserver(this.schedule);
       this.observer.observe(this.doc.body, {

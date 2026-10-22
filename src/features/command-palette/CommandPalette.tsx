@@ -125,6 +125,10 @@ export function CommandPalette({
           }
         }}
       >
+        <div className="palette-heading">
+          <CommandIcon size={15} aria-hidden="true" />
+          <span>Vynlo Command</span>
+        </div>
         <div className="palette-search">
           <Search size={20} aria-hidden="true" />
           <input
@@ -137,7 +141,7 @@ export function CommandPalette({
             aria-activedescendant={current ? `${id}-option-${currentIndex}` : undefined}
             autoComplete="off"
             spellCheck={false}
-            placeholder="What would you like to do?"
+            placeholder="Type a command…"
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -187,9 +191,9 @@ export function CommandPalette({
                 </span>
                 <span className="palette-command-label">
                   <span>{command.title}</span>
-                  <span className="palette-command-meta">
-                    {command.disabledReason ?? command.group}
-                  </span>
+                  {command.disabledReason && (
+                    <span className="palette-command-meta">{command.disabledReason}</span>
+                  )}
                 </span>
                 {command.shortcut && (
                   <kbd className="palette-shortcut" aria-hidden="true">

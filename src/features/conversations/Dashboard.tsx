@@ -95,12 +95,11 @@ export function Dashboard({
     (c) => (activeReminders.get(c.id)?.dueAt ?? Infinity) <= now,
   ).length;
   return (
-    <section>
+    <section className="conversation-dashboard">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">YOUR WORKSPACE</p>
-          <h1>Keep things moving.</h1>
-          <p className="muted">A little clarity for every conversation.</p>
+          <h1>Conversations</h1>
+          <p className="muted">Track replies and follow-ups.</p>
         </div>
       </div>
       <div className="stats-grid">

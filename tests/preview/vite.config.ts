@@ -8,6 +8,16 @@ export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
   build: { outDir: '../../artifacts/ui-preview', emptyOutDir: true },
-  server: { host: '127.0.0.1', port: 4173, strictPort: true },
-  preview: { host: '127.0.0.1', port: 4173, strictPort: true },
+  server: {
+    host: '127.0.0.1',
+    port: 4173,
+    strictPort: true,
+    headers: { 'Cache-Control': 'no-store' },
+  },
+  preview: {
+    host: '127.0.0.1',
+    port: 4173,
+    strictPort: true,
+    headers: { 'Cache-Control': 'no-store' },
+  },
 });

@@ -1,29 +1,24 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/marketing/vynlo-github-banner-dark.png" />
+  <img src="assets/brand/marketing/vynlo-github-banner.png" alt="Vynlo — Email, without the friction." width="100%" />
+</picture>
+
+_Brand illustration, not a verified Gmail screenshot._
+
 # Vynlo
 
-Email, without the friction.
+A free, open-source productivity layer for Gmail. Track conversations, remember follow-ups and write with reusable snippets, without leaving your inbox.
 
-Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, follow-up reminders, snippets and contact notes to Gmail. Your records stay in your browser profile. Core features require no Vynlo account, server, subscription or AI service. Automatic encrypted Cloudflare backups are optional and off by default.
-
-**Compatibility preview:** the first version supports a deliberately narrow Gmail identity path. Tracking requires a visible conversation heading corroborated against its URL. Both legacy hexadecimal routes and a restricted modern `f` token format are supported when the visible identifiers agree; draft tokens, unknown formats and ambiguous views are disabled. Vynlo disables tracking when it cannot establish identity. Automated fixtures do not establish live Gmail compatibility; see the [compatibility checklist](docs/GMAIL_COMPATIBILITY.md) before relying on this release.
-
-## What you can do
-
-- Track supported conversations as Needs Reply, Waiting, Follow Up or Resolved; add your own notes.
-- Search and filter by status or due reminders, change statuses inline and schedule reminders directly from conversation rows.
-- Schedule local reminders, snooze them, dismiss them or resolve the conversation.
-- Open a searchable command palette and use configurable keyboard shortcuts.
-- Save categorized snippets, fill variables such as `{{first_name}}` and insert plain text into a supported Gmail composer. A new install includes starter templates you can edit or delete.
-- Keep contact notes and tags under each Gmail account.
-- Choose light, dark or automatic themes; export, import or clear local data in settings.
-- Download password-encrypted recovery files or explicitly enable automatic encrypted cloud backups. Restore from a file after reinstalling, with a preview before anything changes.
-
-Vynlo never sends email. Waiting means you manually marked the conversation; reminders do not prove that no reply has arrived. Snippets are shared across your local Vynlo workspace; conversations, reminders and contacts are account-scoped.
+- Mark conversations **Needs Reply**, **Waiting**, **Follow Up** or **Resolved**.
+- Schedule reminders and review what's due in one dashboard.
+- Find actions through a command palette and configurable shortcuts.
+- Insert snippets with template variables; keep contact notes and tags.
+- Choose light or dark mode and export your workspace.
+- Download a password-encrypted backup, or turn on automatic encrypted cloud backups. Both stay off until you choose them.
 
 ## Install locally
 
-Requirements: Chrome/Chromium 120 or newer, Node.js 22.13.0 or newer and pnpm 11.9.0.
-
-From this repository:
+Use Chrome/Chromium 120+, Node.js 22.13.0+ and pnpm 11.9.0.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -31,60 +26,32 @@ pnpm build
 ```
 
 1. Open `chrome://extensions` and enable **Developer mode**.
-2. Choose **Load unpacked** and select `.output/chrome-mv3` inside this repository.
-3. Open or reload `https://mail.google.com/mail/`.
-4. Open Vynlo from its Gmail control or use the extension popup to open settings.
+2. Select **Load unpacked**, then choose `release/Vynlo` in this repository.
+3. Reload Gmail and open Vynlo from its Gmail control.
 
-After rebuilding, reload the extension in `chrome://extensions`, then reload Gmail. Export your records before uninstalling or changing installation paths: another extension ID has a separate data store.
+Open a supported conversation and choose a status to start tracking. Use **Cmd+K** on macOS or **Ctrl+K** on Windows/Linux to open commands. Read the [usage guide](docs/USAGE.md) for reminders, snippets, shortcuts and data export.
 
-To make a ZIP, run `pnpm zip`. WXT writes it into `.output/`; extract it before using **Load unpacked**. See [release instructions](docs/RELEASE.md) for package checks. Nothing in these commands publishes the extension.
-
-## Use Vynlo
-
-Open a supported conversation, choose a status, then add a note or reminder. If tracking is unavailable, read the explanation in the panel. Do not infer or invent a thread ID from a subject line. Saved references use a corroborated 16-character hexadecimal ID; [Gmail compatibility](docs/GMAIL_COMPATIBILITY.md) explains the current restrictions.
-
-Open the dashboard to review your next steps. Due reminders remain visible even if the operating system suppresses the desktop notification. Resolve a conversation to dismiss its reminder; removing tracking also removes its associated reminder.
-
-For snippets, focus the intended Gmail draft, then open Vynlo's snippet picker using its visible control. Fill any requested variables and choose insert. Insertion preserves existing content, including a selected passage, and inserts after the selection. Review the result before sending through Gmail yourself.
-
-| Action          | macOS       | Windows/Linux |
-| --------------- | ----------- | ------------- |
-| Command palette | Cmd+K       | Ctrl+K        |
-| Dashboard       | Cmd+Shift+Y | Ctrl+Shift+Y  |
-| Mark waiting    | Cmd+Shift+U | Ctrl+Shift+U  |
-| Mark resolved   | Cmd+Shift+E | Ctrl+Shift+E  |
-| Snippets        | Cmd+Shift+. | Ctrl+Shift+.  |
-
-Shortcuts deliberately do not fire while typing in an input or composer, preserving Gmail's link-insertion command. Change bindings in settings if another extension or browser shortcut conflicts. The command palette uses arrow keys, Enter and Escape. It also opens from inside the workspace. Mark Waiting/Resolved shortcuts update the thread with a brief confirmation, without forcing the dashboard open.
-
-Legacy JSON exports contain all accounts, snippets, contact notes, conversations, reminders and settings. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; legacy files are readable JSON, not encrypted archives. The new **Data protection** panel creates password-encrypted files instead and can also preserve installed open-tracking capabilities.
+Building updates both `release/Vynlo` and `.output/chrome-mv3`. If Vynlo is already installed, keep its existing folder, click **Reload** on its card at `chrome://extensions`, then reload Gmail. Export your data before uninstalling or changing installation paths.
 
 ## Development
 
-```sh
-pnpm dev
-pnpm check
-pnpm exec playwright install chromium
-pnpm test:e2e
-pnpm zip
-```
+| Command              | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| `pnpm preview`       | Open the live UI preview on port 4173    |
+| `pnpm dev`           | Develop with WXT                         |
+| `pnpm check`         | Formatting, lint, types, tests and build |
+| `pnpm test:e2e`      | Playwright fixture tests                 |
+| `pnpm zip`           | Package the extension in `.output/`      |
+| `pnpm backups:setup` | Guide optional Cloudflare backup setup   |
 
-`pnpm check` runs formatting, ESLint, TypeScript, unit/integration tests and the production build. For an interactive design fixture with fictional data, run `pnpm preview:build` then `pnpm preview` and open the local URL it prints. This uses the real UI and storage service in a separate test database; it is not a Gmail compatibility test. Browser fixture testing is a separate command. See [development](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md) and [contributing](CONTRIBUTING.md).
+See [development setup](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md) and [contributing](CONTRIBUTING.md). Vynlo uses TypeScript, React, WXT/Vite, Tailwind CSS, Lucide and Zustand.
 
-The stack is TypeScript, React, WXT/Vite, Tailwind CSS, Lucide and Zustand. Structured records live in extension-owned IndexedDB; preferences use `chrome.storage.local`. Chrome alarms wake a Manifest V3 service worker for reminders. Vitest, React Testing Library and Playwright cover the layers that can be exercised without Google credentials.
+## Privacy and compatibility
 
-## Privacy and limits
+Your records stay in your browser profile. There is no Vynlo account, subscription or AI service. Conversation tracking, reminders, snippets and contact notes need no server. Vynlo never sends email, reads your entire mailbox or automatically detects replies.
 
-Vynlo reads the visible Gmail structures needed to identify the current account, supported thread and composer. It stores minimal conversation references and user-created data. It does not read entire mailboxes, store message bodies or attachments, intercept Gmail traffic, request OAuth or transmit plaintext workspace records to a server. Optional backups send encrypted snapshots to the user-configured Cloudflare Worker; Cloudflare handles request metadata.
+Optional backups can save a password-encrypted file on your computer, or send an encrypted snapshot to a Cloudflare Worker you connect. The encryption key is not uploaded. Local browser data and older JSON exports are not encrypted by Vynlo. New recovery files use authenticated AES-256-GCM. See [data protection](docs/BACKUPS.md), the [privacy policy draft](docs/PRIVACY.md) and the [security model](docs/SECURITY.md).
 
-Local browser data and legacy JSON exports are **not encrypted by Vynlo**. New recovery files and optional cloud snapshots use authenticated AES-256-GCM encryption. Cloud backups require explicit consent and a saved recovery file; the encryption key is not uploaded. See [data protection](docs/BACKUPS.md). Anyone with access to your browser profile may be able to read it. Export files and text you insert into Gmail need the same care as other personal documents. Normal Gmail behavior, including syncing a draft you edit, remains controlled by Google.
+This release is a **compatibility preview**. Tracking works only when Gmail's visible conversation identity agrees with its route; unsupported or ambiguous views disable tracking. Fixture tests do not establish live Gmail compatibility. See [supported Gmail behavior](docs/GMAIL_COMPATIBILITY.md), [known limitations](docs/LIMITATIONS.md) and the [roadmap](docs/ROADMAP.md).
 
-Read the [privacy policy draft](docs/PRIVACY.md), [security model](docs/SECURITY.md) and [known limitations](docs/LIMITATIONS.md). Automatic reply detection, smart inboxes, cloud synchronization and Gmail API access are outside this release. The [roadmap](docs/ROADMAP.md) prioritizes broader verified Gmail support first.
-
-## Screenshots
-
-Screenshot placeholders: supported conversation controls; due-reminder dashboard; command palette; snippet variables; light/dark settings. No live Gmail screenshots are included. Capture only synthetic accounts and messages after completing the release checks.
-
-## Project information
-
-The source is licensed under [MIT](LICENSE). Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md). A public repository URL and maintainer support address have not been configured yet; this preview does not invent either. Public distribution requires the remaining items in the [release checklist](docs/RELEASE.md).
+[MIT license](LICENSE) · [Contribute](CONTRIBUTING.md) · [GitHub](https://github.com/deBrian07/Vynlo) · [Release checklist](docs/RELEASE.md)

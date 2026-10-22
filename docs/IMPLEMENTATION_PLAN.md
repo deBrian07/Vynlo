@@ -1,8 +1,8 @@
 # Implementation plan
 
-## Data protection branch
+## Data protection
 
-Branch `feat/data-backups` starts at verified GitHub main `e9244ed`. It does not include the separate open-tracking feature branch.
+The corrected brand kit is already on main. This branch adds optional encrypted backups on top of it. It does not include the separate open-tracking branch.
 
 1. Versioned encrypted backup codec: AES-GCM with independent vault authentication and encryption keys; passphrase-protected local files; recovery-file validation. Test tampering, wrong keys, malformed input and key separation.
 2. Independent private Cloudflare R2 service: bounded encrypted envelopes, hashed capabilities, conditional writes, no plaintext records. Test authorization, concurrent writes and failures.
@@ -34,7 +34,7 @@ Implementation tasks 1–6 above are complete in this branch. The executed check
 
 - One service worker owns IndexedDB; Gmail content scripts communicate through validated messages. No Gmail-origin database.
 - Stable email namespaces, not `/u/0` account slots. No account-dependent writes when identification fails.
-- No API calls, network interception, remote scripts, analytics or automatic sending.
+- No Gmail API calls, network interception, remote scripts, analytics or automatic sending. Optional encrypted backups upload only after the user connects a service and turns them on.
 - Durable reminder records are authoritative. Alarm state is rebuilt on worker activation.
 - Imported backups merge validated records rather than silently replacing the database.
 - Shadow DOM isolates the Gmail UI. Adapter selectors stay outside React.

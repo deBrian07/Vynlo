@@ -147,7 +147,10 @@ export function Dashboard({
           </button>
         ))}
       </div>
-      <p className="results-summary" role="status">
+      <p
+        className={`results-summary ${!query.trim() && filter === 'all' ? 'visually-hidden' : ''}`}
+        role="status"
+      >
         {filtered.length} {filtered.length === 1 ? 'conversation' : 'conversations'}
         {query.trim() ? ` matching “${query.trim()}”` : ''}
       </p>

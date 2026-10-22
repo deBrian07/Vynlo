@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   CheckCheck,
   FileText,
@@ -44,6 +44,7 @@ interface Props {
   onClose?: () => void;
   options?: boolean;
   onPalette?: () => void;
+  sidebarContent?: ReactNode;
 }
 export default function Workspace({
   context,
@@ -54,6 +55,7 @@ export default function Workspace({
   onClose,
   options = false,
   onPalette,
+  sidebarContent,
 }: Props) {
   const [data, setData] = useState<Snapshot | null>(null);
   const [view, setView] = useState<View>(initialView);
@@ -274,32 +276,39 @@ export default function Workspace({
           (context?.account?.email ?? 'Account not identified')
         )}
       </div>
-      <nav className="workspace-nav" aria-label="Vynlo navigation">
-        {(
-          [
-            { id: 'dashboard', label: 'Conversations', icon: CheckCheck },
-            { id: 'snippets', label: 'Snippets', icon: FileText },
-            { id: 'contacts', label: 'Contacts', icon: UsersRound },
-            ...(options ? [{ id: 'settings' as const, label: 'Settings', icon: Settings2 }] : []),
-          ] satisfies { id: View; label: string; icon: LucideIcon }[]
-        ).map((item) => (
-          <button
-            key={item.id}
-            aria-current={view === item.id ? 'page' : undefined}
-            onClick={() => changeView(item.id)}
-          >
-            <item.icon size={15} />
-            {item.label}
-          </button>
-        ))}
-        {!options && (
-          <button onClick={() => act(() => request({ type: 'options' }))}>
-            <Settings2 size={15} />
-            Settings
-            <ExternalLink size={10} />
-          </button>
+      <div className="workspace-navigation">
+        <nav className="workspace-nav" aria-label="Vynlo navigation">
+          {(
+            [
+              { id: 'dashboard', label: 'Conversations', icon: CheckCheck },
+              { id: 'snippets', label: 'Snippets', icon: FileText },
+              { id: 'contacts', label: 'Contacts', icon: UsersRound },
+              ...(options ? [{ id: 'settings' as const, label: 'Settings', icon: Settings2 }] : []),
+            ] satisfies { id: View; label: string; icon: LucideIcon }[]
+          ).map((item) => (
+            <button
+              key={item.id}
+              aria-current={view === item.id ? 'page' : undefined}
+              onClick={() => changeView(item.id)}
+            >
+              <item.icon size={15} />
+              {item.label}
+            </button>
+          ))}
+          {!options && (
+            <button onClick={() => act(() => request({ type: 'options' }))}>
+              <Settings2 size={15} />
+              Settings
+              <ExternalLink size={10} />
+            </button>
+          )}
+        </nav>
+        {sidebarContent && (
+          <aside className="workspace-sidebar-extra" aria-label="Workspace tools">
+            {sidebarContent}
+          </aside>
         )}
-      </nav>
+      </div>
       <div className="workspace-body">
         {error && (
           <div className="error-box" role="alert">

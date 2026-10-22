@@ -4,6 +4,7 @@ import hooks from 'eslint-plugin-react-hooks';
 export default tseslint.config(
   {
     ignores: [
+      'release/**',
       'node_modules/**',
       '.output/**',
       '.wxt/**',

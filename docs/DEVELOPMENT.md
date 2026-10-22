@@ -20,7 +20,7 @@ Use Node.js 22.13.0 or newer and pnpm 11.9.0, matching `package.json`. Install f
 
 For Playwright, install Chromium first with `pnpm exec playwright install chromium`; Linux CI may need `pnpm exec playwright install --with-deps chromium`. These test fixtures use synthetic identities and require no Google credentials.
 
-The production unpacked directory is `.output/chrome-mv3`. Load it from `chrome://extensions` with Developer mode enabled. Reload the extension after a production rebuild and reload existing Gmail tabs. Inspect the service worker from the extension's details page when debugging alarms or messages.
+Production builds update both `.output/chrome-mv3` and the visible `release/Vynlo` directory. Keep the same directory when reloading an installed extension; changing its path can change its ID and data namespace. Load it from `chrome://extensions` with Developer mode enabled. Reload the extension after a production rebuild and reload existing Gmail tabs. Inspect the service worker from the extension's details page when debugging alarms or messages.
 
 ## Test boundaries
 
@@ -51,4 +51,6 @@ If dependency installation is unavailable, report the exact failure. Running a t
 
 ## Interactive visual fixture
 
-Run `pnpm preview:build` then `pnpm preview` and open the printed localhost URL. The preview is explicitly labeled with fictional data and uses the real UI/background service with a separate database. The Draft lab uses the actual Gmail adapter against a synthetic contenteditable editor so you can verify plain-text insertion, focus restoration and native undo without Google credentials. Notifications and opening fictional conversations are test platform stubs; this preview does not validate live Gmail integration.
+Run `pnpm preview` and open the printed localhost URL. The preview is explicitly labeled with fictional data and uses the real UI/background service with a separate database. The Draft lab uses the actual Gmail adapter against a synthetic contenteditable editor so you can verify plain-text insertion, focus restoration and native undo without Google credentials. Notifications and opening fictional conversations are test platform stubs; this preview does not validate live Gmail integration.
+
+`pnpm preview` starts the local fixture directly from source at `http://127.0.0.1:4173/` with live updates. For a static fixture build, use `pnpm preview:build` followed by `pnpm preview:static`. Stop an existing preview with Ctrl+C before starting another on the same port.

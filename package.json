@@ -11,8 +11,8 @@
   },
   "scripts": {
     "dev": "wxt",
-    "build": "wxt build",
-    "zip": "wxt zip",
+    "build": "wxt build && node scripts/sync-build.mjs",
+    "zip": "wxt zip && node scripts/sync-build.mjs",
     "backups:setup": "node scripts/backups-setup.mjs",
     "postinstall": "wxt prepare",
     "typecheck": "wxt prepare && tsc --noEmit",
@@ -20,11 +20,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "preview:build": "vite build --config tests/preview/vite.config.ts",
-    "preview": "vite preview --config tests/preview/vite.config.ts",
+    "preview": "vite --config tests/preview/vite.config.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "preview:static": "vite preview --config tests/preview/vite.config.ts"
   },
   "dependencies": {
     "react": "19.3.1",

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { X, Inbox, LoaderCircle, AlertTriangle } from 'lucide-react';
+import { BrandMark, BrandName } from './Brand';
 
 export function Modal({
   title,
@@ -148,10 +149,9 @@ export function Confirm({
 export function Logo() {
   return (
     <span className="wordmark">
-      <span className="logo-mark" aria-hidden="true">
-        v
-      </span>
-      vynlo<span className="beta">LOCAL</span>
+      <BrandMark className="logo-mark" />
+      <BrandName />
+      <span className="beta">LOCAL</span>
     </span>
   );
 }

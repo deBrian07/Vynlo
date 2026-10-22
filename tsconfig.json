@@ -8,5 +8,6 @@
     "jsx": "react-jsx",
     "types": ["chrome", "node", "vitest/globals"],
     "ignoreDeprecations": "6.0"
-  }
+  },
+  "exclude": ["**/node_modules", ".output", "artifacts", "release"]
 }

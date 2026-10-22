@@ -5,3 +5,8 @@ pnpm-lock.yaml
 artifacts
 test-results
 playwright-report
+
+# Preserve supplied vector assets and brand-kit guidance verbatim.
+assets/brand
+
+release

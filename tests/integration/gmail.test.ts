@@ -52,6 +52,27 @@ describe('Gmail identity proof', () => {
     heading().setAttribute('data-legacy-thread-id', THREAD_B);
     expect(adapter.getContext().conversation?.threadId).toBe(THREAD_B);
   });
+  it('accepts a modern route only when both heading identifiers corroborate it', () => {
+    history.replaceState({}, '', '/#inbox/FMfcgxmZVPbZvwJWCvBMvjxglSMPvsvW');
+    heading().setAttribute('data-legacy-thread-id', '1630209116a3af45');
+    heading().setAttribute('data-thread-perm-id', 'thread-f:1598813675238698821');
+    expect(adapter.getContext().conversation?.threadId).toBe('1630209116a3af45');
+    heading().setAttribute('data-thread-perm-id', 'thread-f:1598813675238698822');
+    expect(adapter.getContext().conversation).toBeNull();
+    heading().setAttribute('data-thread-perm-id', 'thread-f:1598813675238698821');
+    heading().setAttribute('data-legacy-thread-id', THREAD_A);
+    expect(adapter.getContext().conversation).toBeNull();
+  });
+  it('does not bind a stale heading after opaque SPA navigation or accept a tampered route', () => {
+    expect(adapter.getContext().conversation).not.toBeNull();
+    history.replaceState({}, '', '/#inbox/FMfcgxmZVPbZvwJWCvBMvjxglSMPvsvW');
+    expect(adapter.getContext().conversation).toBeNull();
+    heading().setAttribute('data-legacy-thread-id', '1630209116a3af45');
+    heading().setAttribute('data-thread-perm-id', 'thread-f:1598813675238698821');
+    expect(adapter.getContext().conversation).not.toBeNull();
+    history.replaceState({}, '', '/#inbox/FMfcgxmZVPbZvwJWCvBMvjxglSMPvsvX');
+    expect(adapter.getContext().conversation).toBeNull();
+  });
   it('ignores hidden headings and rejects multiple visible threads', () => {
     const second = heading().cloneNode(true) as HTMLElement;
     heading().after(second);

@@ -1,5 +1,6 @@
 import type { GmailContext } from '../types/model';
 import { selectors } from './selectors';
+import { decodeThreadRoute } from './thread-route';
 
 const HEX_THREAD = /^[0-9a-f]{16}$/i;
 const EMAIL = /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}/gi;
@@ -110,16 +111,17 @@ export class GmailAdapter {
       /^(all|inbox|sent|drafts|starred|important|spam|trash|snoozed|search|label|category)$/.test(
         route[0] ?? '',
       );
-    if (
-      !supportedRoute ||
-      route.length < 2 ||
-      !HEX_THREAD.test(token) ||
-      token.toLowerCase() !== thread
-    )
+    const decoded = decodeThreadRoute(token);
+    const matchesLegacy = HEX_THREAD.test(token) && token.toLowerCase() === thread;
+    const matchesOpaque =
+      decoded !== null &&
+      decoded.legacyId === thread &&
+      decoded.permanentId === permanent.replace(/^#/, '');
+    if (!supportedRoute || route.length < 2 || (!matchesLegacy && !matchesOpaque))
       return {
         ...base,
         reason:
-          'This Gmail link cannot be safely matched to the open conversation. Use a #all/<16-character thread ID> link; opaque links and reading panes are not supported yet.',
+          'This Gmail link cannot be safely matched to the open conversation. Reopen the conversation in Gmail. Unknown link formats and reading panes are not supported.',
       };
     return {
       ...base,

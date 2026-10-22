@@ -42,3 +42,7 @@ The full 103-test suite, lint, strict types, formatting and production packaging
 ## Dashboard refinement
 
 The full-page view uses a smaller brand lockup, understated account/status selectors, a simple active navigation tint and grouped summary statistics. Duplicate default result counts remain available to screen readers; search and filtered views show them visibly. Row dividers appear within groups, and reminder actions use text buttons. Keyboard focus indicators and all actions remain available. The preview theme control no longer adds a framed block to the sidebar.
+
+## Gmail launcher
+
+The floating Gmail control uses only the 20px brand mark, with 28px icon buttons for opening the workspace, optional conversation tracking and commands. It has no wordmark or duplicate dashboard icon. Its CSS height is 36px; the larger logo lockups remain in the workspace and popup. Accessible action names and descriptive tooltips are retained.

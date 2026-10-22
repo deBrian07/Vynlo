@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckCheck,
+  Tags,
   FileText,
   UsersRound,
   Settings2,
@@ -29,12 +30,13 @@ import { Dashboard } from '../features/conversations/Dashboard';
 import { ConversationEditor } from '../features/conversations/ConversationEditor';
 import { ReminderEditor } from '../features/reminders/ReminderEditor';
 import { Snippets } from '../features/snippets/Snippets';
+import { CurrentEmailTag, EmailTags } from '../features/classification/components';
 import { Contacts } from '../features/contacts/Contacts';
 import { SettingsView } from '../features/settings/SettingsView';
 import { Confirm, Loading, Logo, Modal } from './ui';
 import { formatShortcut } from '../features/shortcuts/shortcuts';
 
-type View = Settings['landingView'] | 'settings';
+type View = Settings['landingView'] | 'settings' | 'tags';
 interface Props {
   context?: GmailContext;
   adapter?: GmailAdapter;
@@ -165,6 +167,9 @@ export default function Workspace({
   const conversations = (data?.conversations ?? []).filter(
     (c) => accountId && c.accountId === accountId,
   );
+  const emailTags = (data?.emailTags ?? []).filter(
+    (tag) => accountId && tag.accountId === accountId,
+  );
   const contacts = (data?.contacts ?? []).filter((c) => accountId && c.accountId === accountId);
   const reminders = (data?.reminders ?? []).filter((c) => accountId && c.accountId === accountId);
   const settings = data?.settings ?? DEFAULT_SETTINGS;
@@ -278,6 +283,7 @@ export default function Workspace({
         {(
           [
             { id: 'dashboard', label: 'Conversations', icon: CheckCheck },
+            { id: 'tags', label: 'Tags', icon: Tags },
             { id: 'snippets', label: 'Snippets', icon: FileText },
             { id: 'contacts', label: 'Contacts', icon: UsersRound },
             ...(options ? [{ id: 'settings' as const, label: 'Settings', icon: Settings2 }] : []),
@@ -342,6 +348,22 @@ export default function Workspace({
               )}
               {!options && context?.account && !current && view === 'dashboard' && (
                 <div className="context-hint muted">{context?.reason}</div>
+              )}
+              {view === 'dashboard' && current && (
+                <CurrentEmailTag
+                  key={`${current.accountId}:${current.threadId}`}
+                  current={current}
+                  tags={emailTags}
+                  onUpdated={refresh}
+                />
+              )}
+              {view === 'tags' && (
+                <EmailTags
+                  key={accountId ?? 'unidentified'}
+                  current={current}
+                  tags={emailTags}
+                  onUpdated={refresh}
+                />
               )}
               {view === 'dashboard' && (
                 <Dashboard

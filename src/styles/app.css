@@ -1547,3 +1547,82 @@ kbd {
     scroll-behavior: auto !important;
   }
 }
+
+/* Classification stays secondary to the conversation workflow. */
+.vynlo .classification-settings h2,
+.vynlo .current-email-tag h2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.vynlo .classification-settings small {
+  display: block;
+  max-width: 40em;
+  margin-top: 4px;
+  font-weight: 400;
+}
+.vynlo .classification-settings .setting-row {
+  gap: 20px;
+}
+.vynlo .classification-setup {
+  padding-left: 20px;
+  margin: 16px 0;
+}
+.vynlo .classification-setup li + li {
+  margin-top: 8px;
+}
+.vynlo .classification-command {
+  display: block;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.vynlo .current-email-tag {
+  margin: 0 0 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.vynlo .current-email-tag h2 {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.vynlo .current-email-tag .card-top > div,
+.vynlo .email-tags .card-top > div {
+  min-width: 0;
+}
+.vynlo .current-email-tag p,
+.vynlo .email-tags .conversation-link {
+  overflow-wrap: anywhere;
+}
+.vynlo .current-email-tag .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.vynlo .email-tags .filter-bar {
+  margin: 24px 0 12px;
+}
+.vynlo .email-tags .contact-card {
+  margin-top: 12px;
+}
+.vynlo .email-tags .tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.vynlo .email-tags .conversation-link {
+  padding: 0;
+  border: none;
+  text-align: left;
+  background: transparent;
+}

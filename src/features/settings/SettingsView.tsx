@@ -11,6 +11,7 @@ import type { Request } from '../../types/messages';
 import { request } from '../../services/client';
 import { validBackup } from '../../services/validation';
 import { validateShortcuts, formatShortcut } from '../shortcuts/shortcuts';
+import { ClassificationSettings } from '../classification/components';
 import { Confirm } from '../../components/ui';
 
 function download(data: unknown, name: string) {
@@ -425,7 +426,8 @@ export function SettingsView({
         </div>
         <p className="muted">
           {snapshot.conversations.length} conversations · {snapshot.reminders.length} reminders ·{' '}
-          {snapshot.contacts.length} contacts · {snapshot.snippets.length} snippets
+          {snapshot.contacts.length} contacts · {snapshot.snippets.length} snippets ·{' '}
+          {snapshot.emailTags?.length ?? 0} email tags
         </p>
         <p className="muted">{storage}</p>
         <details>
@@ -435,12 +437,15 @@ export function SettingsView({
             conversation title and draft you choose. It stores account addresses, tracked thread
             references, your notes, reminders, templates and preferences in extension-owned
             IndexedDB and Chrome local storage. It does not store message bodies or attachments,
-            transmit your data, use analytics, request OAuth, detect replies or send email. Data is
-            scoped to this Chrome profile and is not encrypted by Vynlo. Uninstalling removes
-            extension data; export a backup first. Source privacy policy: docs/PRIVACY.md.
+            send data to a Vynlo server, use analytics, request OAuth, detect replies or send email.
+            Optional AI classification sends the current subject to local Ollama only after you
+            enable it. Data is scoped to this Chrome profile and is not encrypted by Vynlo.
+            Uninstalling removes extension data; export a backup first. Source privacy policy:
+            docs/PRIVACY.md.
           </p>
         </details>
       </div>
+      <ClassificationSettings />
       <div className="settings-section">
         <h2>About Vynlo</h2>
         <p className="muted">Version {chrome.runtime.getManifest().version} · MIT license</p>

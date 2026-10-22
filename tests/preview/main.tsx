@@ -6,6 +6,11 @@ import { CommandPalette, type Command } from '../../src/features/command-palette
 import { ErrorBoundary } from '../../src/components/ErrorBoundary';
 import { DraftLab } from './DraftLab';
 import { starterSnippets } from '../../src/features/snippets/starters';
+import { createClassificationService } from '../../src/features/classification/service';
+import {
+  DEFAULT_CLASSIFICATION,
+  type ClassificationPreferences,
+} from '../../src/features/classification/model';
 import { createBackgroundHandler, type BackgroundPlatform } from '../../src/services/background';
 import { VynloDatabase } from '../../src/services/storage/database';
 import { contactId, conversationId, reminderId } from '../../src/services/validation';
@@ -41,13 +46,32 @@ const platform: BackgroundPlatform = {
   publishRevision: async () => announce(),
 };
 const service = createBackgroundHandler({ database, platform });
+let classificationPreferences: ClassificationPreferences = { ...DEFAULT_CLASSIFICATION };
+const classifier = createClassificationService({
+  database,
+  platform: {
+    extensionId: 'preview',
+    getPreferences: async () => classificationPreferences,
+    setPreferences: async (value) => {
+      classificationPreferences = value;
+    },
+    hasPermission: async () => false,
+    isEnhancementEnabled: async () => settings.enabled,
+    publishRevision: async () => announce(),
+    openTab: platform.openTab,
+  },
+});
 Object.defineProperty(window, 'chrome', {
   configurable: true,
   value: {
     runtime: {
-      sendMessage: (message: Request) => service.handle(message, sender),
+      sendMessage: (message: Request | { type: string }) =>
+        message.type.startsWith('classify-')
+          ? classifier.handle(message, sender)
+          : service.handle(message, sender),
       getManifest: () => ({ version: '0.1.0' }),
     },
+    permissions: { request: async () => false },
     storage: {
       local: { get: async () => ({ settings }) },
       onChanged: {

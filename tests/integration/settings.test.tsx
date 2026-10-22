@@ -20,7 +20,15 @@ const props = { onSave, onRefresh, onSnippets };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubGlobal('chrome', { runtime: { getManifest: () => ({ version: '0.1.0' }) } });
+  vi.stubGlobal('chrome', {
+    runtime: {
+      getManifest: () => ({ version: '0.1.0' }),
+      sendMessage: async () => ({
+        ok: true,
+        data: { enabled: false, automatic: false, permission: false, model: 'tev1:0.8b' },
+      }),
+    },
+  });
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     this.setAttribute('open', '');
   });

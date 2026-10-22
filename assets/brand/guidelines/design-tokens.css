@@ -1,0 +1,10 @@
+/* Vynlo brand tokens: keep existing application UI interaction colors separate. */
+:root {
+  --vynlo-brand-navy: #0F172A;
+  --vynlo-brand-mint: #2DD4BF;
+  --vynlo-brand-teal: #2C8791;
+  --vynlo-brand-slate: #94A3B8;
+  --vynlo-brand-surface: #F8FAFC;
+  --vynlo-brand-white: #FFFFFF;
+  --vynlo-ui-indigo-existing: #625DF5;
+}

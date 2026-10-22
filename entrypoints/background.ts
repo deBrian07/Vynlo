@@ -81,9 +81,13 @@ export default defineBackground(() => {
         if (type === 'clear') {
           // Core handler still checks the sender before any sensitive reset is permitted.
           const allowed = senderKind(sender, chrome.runtime.id) === 'extension';
-          if (allowed) await backups.beforeClear();
+          if (allowed) {
+            const paused = await backups.handle({ type: 'backup-pause' }, trusted);
+            if (!paused.ok) return paused;
+          }
         }
         const response = await service.handle(message, sender);
+        if (response.ok && type === 'clear') await backups.beforeClear();
         if (
           response.ok &&
           typeof type === 'string' &&

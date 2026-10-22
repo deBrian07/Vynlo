@@ -199,4 +199,51 @@ describe('production background backup wiring', () => {
     expect(env.chrome.alarms.clear).toHaveBeenCalledWith('vynlo-workspace-backup');
     expect(fetcher).not.toHaveBeenCalled();
   });
+  it('retains recovery configuration and pauses uploads if clearing the core workspace fails', async () => {
+    expect(
+      (await env.send({ type: 'track', ref, status: 'waiting', note: 'Preserve on failure' })).ok,
+    ).toBe(true);
+    const before = await snapshot();
+    const secret = 'd'.repeat(64);
+    const { vaultId } = await deriveVault(secret);
+    const state = new BackupStateStore();
+    await state.write({
+      version: 1,
+      cloud: {
+        format: 'vynlo-recovery-kit',
+        version: 1,
+        endpoint: 'https://backup.example.workers.dev',
+        secret,
+        vaultId,
+        enabled: true,
+        dirty: false,
+        etag: '"revision-1"',
+        lastSuccess: Date.now(),
+      },
+    });
+    const { VynloDatabase } = await import('../../src/services/storage/database');
+    const clear = vi
+      .spyOn(VynloDatabase.prototype, 'clear')
+      .mockRejectedValueOnce(new Error('Disk unavailable before transaction'));
+    const beforeClear = vi.spyOn(control.service!, 'beforeClear');
+    expect((await env.send({ type: 'clear' })).ok).toBe(false);
+    expect(clear).toHaveBeenCalledOnce();
+    expect(beforeClear).not.toHaveBeenCalled();
+    expect(await env.send({ type: 'backup-status' })).toMatchObject({
+      ok: true,
+      data: { configured: true, automatic: false },
+    });
+    expect((await state.read()).cloud).toMatchObject({
+      secret,
+      vaultId,
+      enabled: false,
+      etag: '"revision-1"',
+    });
+    const after = await snapshot();
+    expect(after.conversations).toEqual(before.conversations);
+    expect(after.accounts).toEqual(before.accounts);
+    expect(after.snippets).toEqual(before.snippets);
+    expect(env.chrome.alarms.clear).toHaveBeenCalledWith('vynlo-workspace-backup');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });

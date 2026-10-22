@@ -1,5 +1,18 @@
 # Implementation plan
 
+## Corrected brand kit branch
+
+`feat/brand-kit` starts directly from main `e9244ed`, independently of backup and open-tracking branches.
+
+- [x] Preserve the complete supplied corrected kit under `assets/brand`.
+- [x] Replace Chrome icons with supplied exact-size navy/mint exports.
+- [x] Adapt inline local vector mark and outlined wordmark in workspace, popup and Gmail launcher, with light/dark and accessible labels.
+- [x] Shorten README, use supplied theme-aware banners with truthful illustration labeling, move detailed instructions to `docs/USAGE.md`.
+- [x] Validate formatting, lint, types, 103 tests, build, preview build, ZIP and asset/reference checks. Installed-extension visuals/live Gmail remain release gates.
+- [x] Prepare independent branch history and package. Publication requires reachable GitHub; current terminal DNS is blocked.
+
+See [BRANDING.md](BRANDING.md) for asset mapping and merge notes.
+
 Vynlo enhances Gmail locally. The initial release includes P0 and P1; automatic reply detection and all other P2 work remain out of scope.
 
 ## Milestones and gates

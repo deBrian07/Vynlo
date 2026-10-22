@@ -12,6 +12,7 @@ import {
   type ConversationRef,
   type Snapshot,
 } from '../../src/types/model';
+import { starterSnippets } from '../../src/features/snippets/starters';
 import { conversationId, reminderId } from '../../src/services/validation';
 const accountA = 'a@example.com';
 const accountB = 'b@example.com';
@@ -202,5 +203,52 @@ describe('background persistence and isolation', () => {
     expect(
       (await send({ type: 'remind', accountId: accountA, conversationId: id, dueAt: 3000 })).ok,
     ).toBe(false);
+  });
+  it('seeds starter snippets once and restores them after local data is cleared', async () => {
+    const seeded = createBackgroundHandler({
+      database,
+      platform,
+      now: () => clock,
+      seedSnippets: starterSnippets,
+    });
+    await seeded.reconcile();
+    const first = await seeded.handle({ type: 'export' }, trusted);
+    if (!first.ok || !first.data || !('snippets' in first.data))
+      throw new Error('missing snippets');
+    expect(first.data.snippets).toHaveLength(6);
+    await seeded.reconcile();
+    const second = await seeded.handle({ type: 'export' }, trusted);
+    if (!second.ok || !second.data || !('snippets' in second.data))
+      throw new Error('missing snippets');
+    expect(second.data.snippets.map((snippet) => snippet.id).sort()).toEqual(
+      first.data.snippets.map((snippet) => snippet.id).sort(),
+    );
+    expect((await seeded.handle({ type: 'clear' }, trusted)).ok).toBe(true);
+    const restored = await seeded.handle({ type: 'export' }, trusted);
+    if (!restored.ok || !restored.data || !('snippets' in restored.data))
+      throw new Error('missing snippets');
+    expect(restored.data.snippets).toHaveLength(6);
+    expect(
+      restored.data.snippets.some((snippet) =>
+        first.data.snippets.some((original) => original.id === snippet.id),
+      ),
+    ).toBe(false);
+  });
+  it('does not replace snippets that were already saved', async () => {
+    await send({
+      type: 'save-snippet',
+      snippet: { title: 'Mine', content: 'Hello there', category: 'Personal' },
+    });
+    const seeded = createBackgroundHandler({
+      database,
+      platform,
+      now: () => clock,
+      seedSnippets: starterSnippets,
+    });
+    await seeded.reconcile();
+    const response = await seeded.handle({ type: 'export' }, trusted);
+    if (!response.ok || !response.data || !('snippets' in response.data))
+      throw new Error('missing snippets');
+    expect(response.data.snippets.map((snippet) => snippet.title)).toEqual(['Mine']);
   });
 });

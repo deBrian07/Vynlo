@@ -1,6 +1,8 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
+import { starterSnippets } from '../../src/features/snippets/starters';
 import { VynloDatabase } from '../../src/services/storage/database';
+import { DEFAULT_SETTINGS } from '../../src/types/model';
 
 describe('versioned local database', () => {
   it('creates version one stores and preserves data across reconnects', async () => {
@@ -59,6 +61,21 @@ describe('versioned local database', () => {
     await expect(db.read()).rejects.toThrow('could not be verified');
     await db.clear({});
     expect((await db.read()).conversations).toEqual([]);
+    await db.close();
+  });
+  it('seeds an empty snippet library once and can seed again after a reset', async () => {
+    const db = new VynloDatabase('seed', new IDBFactory());
+    const starters = starterSnippets(10);
+    expect(await db.seedSnippets(starters)).toBe(6);
+    expect(await db.seedSnippets(starterSnippets(10))).toBe(0);
+    expect((await db.read()).snippets.map((snippet) => snippet.id).sort()).toEqual(
+      starters.map((snippet) => snippet.id).sort(),
+    );
+    await expect(db.seedSnippets([{ ...starters[0]!, title: '' }])).rejects.toThrow(
+      'could not be verified',
+    );
+    await db.clear(DEFAULT_SETTINGS);
+    expect(await db.seedSnippets(starterSnippets(11))).toBe(6);
     await db.close();
   });
 });

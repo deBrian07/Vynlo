@@ -1,8 +1,10 @@
 import { defineBackground } from 'wxt/utils/define-background';
 import { createBackgroundHandler, REMINDER_ALARM } from '../src/services/background';
+import { starterSnippets } from '../src/features/snippets/starters';
 
 export default defineBackground(() => {
   const service = createBackgroundHandler({
+    seedSnippets: starterSnippets,
     platform: {
       extensionId: chrome.runtime.id,
       getSettings: async () => (await chrome.storage.local.get('settings')).settings,

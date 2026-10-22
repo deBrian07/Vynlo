@@ -12,7 +12,7 @@ Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, 
 - Search and filter a dashboard by status, with due-date and recent-update sorting.
 - Schedule local reminders, snooze them, dismiss them or resolve the conversation.
 - Open a searchable command palette and use configurable keyboard shortcuts.
-- Save categorized snippets, fill variables such as `{{first_name}}` and insert plain text into a supported Gmail composer.
+- Save categorized snippets, fill variables such as `{{first_name}}` and insert plain text into a supported Gmail composer. A new install includes starter templates you can edit or delete.
 - Keep contact notes and tags under each Gmail account.
 - Choose light, dark or automatic themes; export, import or clear local data in settings.
 

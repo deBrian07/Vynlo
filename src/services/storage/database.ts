@@ -129,13 +129,52 @@ export class VynloDatabase {
     const tx = db.transaction('metadata', 'readonly');
     return result(tx.objectStore('metadata').get('pendingSettings'));
   }
+  /** Inserts snippets only into an empty library, and only once per install. */
+  async seedSnippets(snippets: Snippet[]): Promise<number> {
+    if (
+      snippets.length === 0 ||
+      !validBackup({
+        accounts: [],
+        conversations: [],
+        reminders: [],
+        contacts: [],
+        snippets,
+        settings: DEFAULT_SETTINGS,
+        schemaVersion: 1,
+        exportedAt: 0,
+      })
+    )
+      throw new Error('Starter snippets could not be verified.');
+    const db = await this.open();
+    const tx = db.transaction(['snippets', 'metadata'], 'readwrite');
+    const done = complete(tx);
+    try {
+      const metadata = tx.objectStore('metadata');
+      if (await result(metadata.get('snippetsSeeded'))) {
+        await done;
+        return 0;
+      }
+      const existing = await result<Snippet[]>(tx.objectStore('snippets').getAll());
+      const added = existing.length === 0 ? snippets : [];
+      for (const snippet of added) tx.objectStore('snippets').put(snippet);
+      metadata.put(true, 'snippetsSeeded');
+      await done;
+      return added.length;
+    } catch (error) {
+      tx.abort();
+      await done.catch(() => undefined);
+      throw error;
+    }
+  }
   /** Explicit destructive reset also works when an individual record is corrupt. */
   async clear(pendingSettings: unknown): Promise<void> {
     const db = await this.open();
     const tx = db.transaction([...TABLES, 'metadata'], 'readwrite');
     const done = complete(tx);
     for (const name of TABLES) tx.objectStore(name).clear();
-    tx.objectStore('metadata').put(pendingSettings, 'pendingSettings');
+    const metadata = tx.objectStore('metadata');
+    metadata.clear();
+    metadata.put(pendingSettings, 'pendingSettings');
     await done;
   }
   async finishSettings(): Promise<void> {

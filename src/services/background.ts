@@ -1,4 +1,10 @@
-import { DEFAULT_SETTINGS, type Backup, type Settings, type Snapshot } from '../types/model';
+import {
+  DEFAULT_SETTINGS,
+  type Backup,
+  type Settings,
+  type Snapshot,
+  type Snippet,
+} from '../types/model';
 import type { Request, Response } from '../types/messages';
 import { VynloDatabase, type Records } from './storage/database';
 import {
@@ -59,12 +65,20 @@ export function createBackgroundHandler({
   database = new VynloDatabase(),
   platform,
   now = Date.now,
+  seedSnippets,
 }: {
   database?: VynloDatabase;
   platform: BackgroundPlatform;
   now?: () => number;
+  seedSnippets?: (now: number) => Snippet[];
 }) {
   let queue: Promise<unknown> = Promise.resolve();
+  let snippetsReady = false;
+  const ensureSnippets = async () => {
+    if (snippetsReady || !seedSnippets) return;
+    await database.seedSnippets(seedSnippets(now()));
+    snippetsReady = true;
+  };
   const serialize = <T>(task: () => Promise<T>): Promise<T> => {
     const next = queue.then(task, task);
     queue = next.catch(() => undefined);
@@ -94,6 +108,7 @@ export function createBackgroundHandler({
     };
   };
   const reconcileInternal = async () => {
+    await ensureSnippets();
     const preferences = await settings();
     const dueNotifications: string[] = [];
     const time = now();
@@ -286,6 +301,7 @@ export function createBackgroundHandler({
         } else if (message.type === 'clear') {
           const prior = await database.read().catch(() => undefined);
           await database.clear(DEFAULT_SETTINGS);
+          snippetsReady = false;
           await settings();
           for (const r of prior?.reminders ?? [])
             await platform.clearNotification(r.id).catch(() => undefined);

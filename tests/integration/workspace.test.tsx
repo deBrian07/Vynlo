@@ -6,11 +6,19 @@ import { GmailAdapter } from '../../src/gmail/adapter';
 import { DEFAULT_SETTINGS, type Snapshot } from '../../src/types/model';
 import { gmailFixture, THREAD_A } from '../fixtures/gmail';
 import { getSnapshot, request } from '../../src/services/client';
+import { trackingClient } from '../../src/features/open-tracking/client';
 
 vi.mock('../../src/services/client', () => ({ getSnapshot: vi.fn(), request: vi.fn() }));
+vi.mock('../../src/features/open-tracking/client', () => ({
+  trackingClient: { snapshot: vi.fn(), create: vi.fn() },
+}));
 let data: Snapshot;
 let listeners: Set<() => void>;
 beforeEach(() => {
+  vi.mocked(trackingClient.snapshot)
+    .mockReset()
+    .mockResolvedValue({ connected: false, records: [] });
+  vi.mocked(trackingClient.create).mockReset();
   data = {
     accounts: [],
     conversations: [],
@@ -119,4 +127,63 @@ describe('workspace safety and keyboard workflow', () => {
     view.unmount();
     adapter.dispose();
   });
+});
+
+it('takes an unconnected draft straight to setup without creating a tracking record', async () => {
+  const host = document.createElement('div');
+  host.innerHTML = gmailFixture();
+  document.body.append(host);
+  window.location.hash = `all/${THREAD_A}`;
+  const adapter = new GmailAdapter();
+  const view = render(<ContentApp adapter={adapter} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Track this draft' }));
+  await waitFor(() =>
+    expect(request).toHaveBeenCalledWith({ type: 'options', section: 'open-tracking' }),
+  );
+  expect(screen.queryByRole('dialog', { name: 'Track this draft' })).not.toBeInTheDocument();
+  expect(trackingClient.create).not.toHaveBeenCalled();
+  view.unmount();
+  adapter.dispose();
+  host.remove();
+});
+
+it('keeps the post-insertion next step visible and opens tracked drafts directly', async () => {
+  const host = document.createElement('div');
+  host.innerHTML = gmailFixture();
+  document.body.append(host);
+  window.location.hash = `all/${THREAD_A}`;
+  vi.mocked(trackingClient.snapshot).mockResolvedValue({ connected: true, records: [] });
+  const pixelUrl = `https://vynlo.example.workers.dev/p/${'a'.repeat(64)}.gif`;
+  vi.mocked(trackingClient.create).mockResolvedValue({ id: 'a'.repeat(64), pixelUrl });
+  const editor = host.querySelector<HTMLElement>('[contenteditable]')!;
+  Object.defineProperty(document, 'execCommand', {
+    configurable: true,
+    value: vi.fn((name: string, _ui: boolean, url: string) => {
+      expect(name).toBe('insertImage');
+      const img = document.createElement('img');
+      img.src = url;
+      editor.append(img);
+      return true;
+    }),
+  });
+  const adapter = new GmailAdapter();
+  const view = render(<ContentApp adapter={adapter} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Track this draft' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Add tracking image' }));
+  await screen.findByRole('button', { name: 'Review tracked drafts' });
+  vi.useFakeTimers();
+  try {
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+  expect(screen.getByRole('button', { name: 'Review tracked drafts' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Review tracked drafts' }));
+  await screen.findByRole('heading', { name: 'Open activity' });
+  expect(screen.queryByRole('button', { name: 'Review tracked drafts' })).not.toBeInTheDocument();
+  view.unmount();
+  adapter.dispose();
+  host.remove();
 });

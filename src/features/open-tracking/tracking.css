@@ -1,0 +1,272 @@
+.tracking-heading,
+.tracking-activity-header,
+.tracking-record-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tracking-heading > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.tracking-heading h2 {
+  margin: 0;
+}
+.tracking-badge {
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.tracking-steps {
+  display: grid;
+  gap: 16px;
+  margin: 22px 0;
+  padding-left: 23px;
+}
+.tracking-steps li {
+  padding-left: 6px;
+  color: var(--accent);
+}
+.tracking-steps strong,
+.tracking-steps span {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+}
+.tracking-steps span {
+  color: var(--muted);
+  margin-top: 3px;
+  font-size: 12px;
+}
+.tracking-operator-help {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tracking-operator-help summary {
+  cursor: pointer;
+  color: var(--text);
+}
+.tracking-operator-help p {
+  padding-top: 10px;
+}
+.tracking-connect-form {
+  margin-top: 20px;
+}
+.tracking-setup-intro {
+  font-size: 13px;
+  margin-top: 16px;
+  color: var(--muted);
+}
+.tracking-manual {
+  font-size: 12px;
+  color: var(--muted);
+}
+.tracking-manual summary {
+  cursor: pointer;
+  margin: 10px 0;
+}
+.tracking-manual label {
+  display: block;
+  margin: 12px 0 6px;
+}
+.tracking-file-ready {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+}
+.tracking-settings .tracking-operator-help {
+  margin-top: 16px;
+}
+.tracking-connect-form fieldset {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.tracking-connect-form label {
+  font-size: 12px;
+  font-weight: 500;
+}
+.tracking-connect-form input[type='url'],
+.tracking-connect-form input[type='password'] {
+  width: 100%;
+  margin-bottom: 7px;
+}
+.tracking-connect-form small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+.tracking-connect-form .tracking-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 0 6px;
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.6;
+}
+.tracking-consent input[type='checkbox'] {
+  flex: 0 0 15px;
+  min-height: 15px;
+  height: 15px;
+  width: 15px;
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+.tracking-connect-form button {
+  justify-self: start;
+}
+.tracking-connected {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.tracking-connected > * + * {
+  margin-top: 9px;
+}
+.tracking-connection-state,
+.tracking-open-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.tracking-connection-state,
+.tracking-open-state.is-opened {
+  color: var(--accent);
+}
+.tracking-endpoint {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+}
+.tracking-activity {
+  margin-top: 0;
+}
+.tracking-activity-header {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.tracking-activity-header h2 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+.tracking-activity-header button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.tracking-reliability {
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.tracking-reliability summary {
+  cursor: pointer;
+}
+.tracking-disclosure button {
+  display: block;
+  margin-top: 12px;
+}
+.tracking-activity .muted,
+.tracking-disclosure {
+  font-size: 12px;
+}
+.tracking-disclosure {
+  color: var(--muted);
+  margin: 16px 0;
+  line-height: 1.6;
+}
+.tracking-empty {
+  padding: 24px 16px;
+  color: var(--muted);
+  background: var(--surface);
+  border-radius: 10px;
+  text-align: center;
+  font-size: 12px;
+}
+.tracking-empty > svg {
+  margin: 0 auto 10px;
+}
+.tracking-empty h3 {
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+.tracking-records {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tracking-record {
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+.tracking-record-top {
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.tracking-record-top h3 {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.tracking-record .tracking-activate {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.tracking-next-action {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.tracking-record-details {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 14px;
+}
+.tracking-record-details summary {
+  cursor: pointer;
+}
+.tracking-next-step {
+  flex-wrap: wrap;
+}
+.tracking-next-step button:first-of-type {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tracking-record .muted {
+  margin-top: 5px;
+}
+.tracking-record .tracking-open-state {
+  color: var(--muted);
+}
+.tracking-record .tracking-open-state.is-opened {
+  color: var(--accent);
+}
+@media (max-width: 440px) {
+  .tracking-activity-header {
+    gap: 8px;
+  }
+  .tracking-heading {
+    flex-wrap: wrap;
+  }
+}

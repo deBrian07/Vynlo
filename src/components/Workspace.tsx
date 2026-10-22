@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   CheckCheck,
   FileText,
@@ -9,6 +9,7 @@ import {
   ExternalLink,
   BellPlus,
   Command,
+  Eye,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -33,8 +34,9 @@ import { Contacts } from '../features/contacts/Contacts';
 import { SettingsView } from '../features/settings/SettingsView';
 import { Confirm, Loading, Logo, Modal } from './ui';
 import { formatShortcut } from '../features/shortcuts/shortcuts';
+import { TrackingActivity } from '../features/open-tracking/TrackingActivity';
 
-type View = Settings['landingView'] | 'settings';
+type View = Settings['landingView'] | 'settings' | 'open-tracking';
 interface Props {
   context?: GmailContext;
   adapter?: GmailAdapter;
@@ -44,6 +46,7 @@ interface Props {
   onClose?: () => void;
   options?: boolean;
   onPalette?: () => void;
+  sidebarContent?: ReactNode;
 }
 export default function Workspace({
   context,
@@ -54,6 +57,7 @@ export default function Workspace({
   onClose,
   options = false,
   onPalette,
+  sidebarContent,
 }: Props) {
   const [data, setData] = useState<Snapshot | null>(null);
   const [view, setView] = useState<View>(initialView);
@@ -274,32 +278,40 @@ export default function Workspace({
           (context?.account?.email ?? 'Account not identified')
         )}
       </div>
-      <nav className="workspace-nav" aria-label="Vynlo navigation">
-        {(
-          [
-            { id: 'dashboard', label: 'Conversations', icon: CheckCheck },
-            { id: 'snippets', label: 'Snippets', icon: FileText },
-            { id: 'contacts', label: 'Contacts', icon: UsersRound },
-            ...(options ? [{ id: 'settings' as const, label: 'Settings', icon: Settings2 }] : []),
-          ] satisfies { id: View; label: string; icon: LucideIcon }[]
-        ).map((item) => (
-          <button
-            key={item.id}
-            aria-current={view === item.id ? 'page' : undefined}
-            onClick={() => changeView(item.id)}
-          >
-            <item.icon size={15} />
-            {item.label}
-          </button>
-        ))}
-        {!options && (
-          <button onClick={() => act(() => request({ type: 'options' }))}>
-            <Settings2 size={15} />
-            Settings
-            <ExternalLink size={10} />
-          </button>
+      <div className="workspace-navigation">
+        <nav className="workspace-nav" aria-label="Vynlo navigation">
+          {(
+            [
+              { id: 'dashboard', label: 'Conversations', icon: CheckCheck },
+              { id: 'snippets', label: 'Snippets', icon: FileText },
+              { id: 'contacts', label: 'Contacts', icon: UsersRound },
+              { id: 'open-tracking', label: 'Open tracking', icon: Eye },
+              ...(options ? [{ id: 'settings' as const, label: 'Settings', icon: Settings2 }] : []),
+            ] satisfies { id: View; label: string; icon: LucideIcon }[]
+          ).map((item) => (
+            <button
+              key={item.id}
+              aria-current={view === item.id ? 'page' : undefined}
+              onClick={() => changeView(item.id)}
+            >
+              <item.icon size={15} />
+              {item.label}
+            </button>
+          ))}
+          {!options && (
+            <button onClick={() => act(() => request({ type: 'options' }))}>
+              <Settings2 size={15} />
+              Settings
+              <ExternalLink size={10} />
+            </button>
+          )}
+        </nav>
+        {sidebarContent && (
+          <aside className="workspace-sidebar-extra" aria-label="Workspace tools">
+            {sidebarContent}
+          </aside>
         )}
-      </nav>
+      </div>
       <div className="workspace-body">
         {error && (
           <div className="error-box" role="alert">
@@ -317,7 +329,8 @@ export default function Workspace({
                   <strong>A quieter way to keep up.</strong>
                   <p>
                     Track the conversations that matter, leave yourself a note and come back at the
-                    right time. Everything stays in this browser. Reminders don’t check for replies.
+                    right time. Workspace records stay in this browser. Optional open tracking uses
+                    your configured service. Reminders don’t check for replies.
                   </p>
                   <button
                     onClick={() =>
@@ -393,6 +406,17 @@ export default function Workspace({
               {view === 'contacts' && (
                 <Contacts contacts={contacts} accountId={accountId} onSave={mutate} />
               )}
+              {view === 'open-tracking' && (
+                <TrackingActivity
+                  accountId={accountId}
+                  onSettings={() => {
+                    if (options) {
+                      window.location.hash = 'open-tracking';
+                      changeView('settings');
+                    } else act(() => request({ type: 'options', section: 'open-tracking' }));
+                  }}
+                />
+              )}
               {view === 'settings' && options && (
                 <SettingsView
                   snapshot={data}
@@ -408,7 +432,7 @@ export default function Workspace({
       </div>
       <footer className="workspace-footer">
         <span>
-          <ShieldCheck size={12} /> Local to this browser
+          <ShieldCheck size={12} /> Local workspace
         </span>
         <button className="footer-shortcuts" onClick={() => setShortcuts(true)}>
           <Command size={12} /> Shortcuts <kbd>?</kbd>

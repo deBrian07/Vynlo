@@ -33,7 +33,7 @@ export interface BackgroundPlatform {
   notify(id: string): Promise<void>;
   clearNotification(id: string): Promise<void>;
   openTab(url: string): Promise<void>;
-  openOptions(): Promise<void>;
+  openOptions(section?: 'open-tracking'): Promise<void>;
   publishRevision?(): Promise<void>;
 }
 export function senderKind(
@@ -311,7 +311,7 @@ export function createBackgroundHandler({
           if (!safeConversationUrl(row.url, row.accountId, row.threadId))
             throw new Error('Invalid conversation link.');
           await platform.openTab(row.url);
-        } else if (message.type === 'options') await platform.openOptions();
+        } else if (message.type === 'options') await platform.openOptions(message.section);
         else if (message.type === 'complete-onboarding') {
           const current = await settings();
           if (!current.onboarded) await platform.setSettings({ ...current, onboarded: true });

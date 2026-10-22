@@ -34,6 +34,6 @@ export type Request =
   | { type: 'import'; backup: unknown }
   | { type: 'clear' }
   | { type: 'open'; accountId: string; conversationId: string }
-  | { type: 'options' }
+  | { type: 'options'; section?: 'open-tracking' }
   | { type: 'complete-onboarding' };
 export type Response = { ok: true; data: Snapshot | Backup | null } | { ok: false; error: string };

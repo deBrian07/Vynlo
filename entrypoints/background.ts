@@ -1,8 +1,29 @@
 import { defineBackground } from 'wxt/utils/define-background';
 import { createBackgroundHandler, REMINDER_ALARM } from '../src/services/background';
 import { starterSnippets } from '../src/features/snippets/starters';
+import { createTrackingService } from '../src/features/open-tracking/service';
 
 export default defineBackground(() => {
+  // Content scripts use validated messages, never direct access to stored capabilities.
+  const trustedStorage = chrome.storage.local
+    .setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
+    .then(() => true)
+    .catch(() => false);
+  const tracking = createTrackingService({
+    extensionId: chrome.runtime.id,
+    getConfig: async () => {
+      if (!(await trustedStorage))
+        throw new Error('Tracking credential protection is unavailable. Reload the extension.');
+      return (await chrome.storage.local.get('trackingConnection')).trackingConnection;
+    },
+    setConfig: async (value) => {
+      if (!(await trustedStorage))
+        throw new Error('Tracking credential protection is unavailable. Reload the extension.');
+      if (value) await chrome.storage.local.set({ trackingConnection: value });
+      else await chrome.storage.local.remove('trackingConnection');
+    },
+    hasPermission: async (origin) => chrome.permissions.contains({ origins: [origin] }),
+  });
   const service = createBackgroundHandler({
     seedSnippets: starterSnippets,
     platform: {
@@ -32,8 +53,10 @@ export default defineBackground(() => {
       openTab: async (url) => {
         await chrome.tabs.create({ url });
       },
-      openOptions: async () => {
-        await chrome.runtime.openOptionsPage();
+      openOptions: async (section) => {
+        if (section === 'open-tracking')
+          await chrome.tabs.create({ url: chrome.runtime.getURL('/options.html#open-tracking') });
+        else await chrome.runtime.openOptionsPage();
       },
       publishRevision: async () => {
         await chrome.storage.local.set({ revision: crypto.randomUUID() });
@@ -41,7 +64,32 @@ export default defineBackground(() => {
     },
   });
   chrome.runtime.onMessage.addListener((message: unknown, sender, respond) => {
-    void service.handle(message, sender).then(respond);
+    if (
+      message &&
+      typeof message === 'object' &&
+      'type' in message &&
+      typeof message.type === 'string' &&
+      message.type.startsWith('tracking-')
+    ) {
+      void tracking.handle(message, sender).then(respond);
+    } else {
+      void service
+        .handle(message, sender)
+        .then(async (result) => {
+          if (
+            result.ok &&
+            message &&
+            typeof message === 'object' &&
+            'type' in message &&
+            message.type === 'clear'
+          )
+            await tracking.clearLocal();
+          respond(result);
+        })
+        .catch(() =>
+          respond({ ok: false, error: 'Local tracking data could not be cleared. Try again.' }),
+        );
+    }
     return true;
   });
   const recover = () => {

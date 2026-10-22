@@ -353,9 +353,12 @@ details p {
   flex-shrink: 0;
   margin-top: 11px;
 }
-.full-page .workspace-nav {
+.full-page .workspace-navigation {
   grid-column: 1;
   grid-row: 3;
+  min-width: 0;
+}
+.full-page .workspace-nav {
   flex-direction: column;
   gap: 5px;
   padding: 0 14px;

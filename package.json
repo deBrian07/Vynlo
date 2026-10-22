@@ -13,6 +13,8 @@
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
+    "release": "wxt zip && node scripts/package-release.mjs",
+    "tracking:setup": "node scripts/tracking-setup.mjs",
     "postinstall": "wxt prepare",
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",

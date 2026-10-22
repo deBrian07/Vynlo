@@ -45,4 +45,10 @@ Times are absolute epoch milliseconds. Calendar-day presets retain local wall-cl
 
 ## Extending the product
 
-Add commands through the typed command registry. Add provider behavior through the adapter boundary. New storage fields require validation, migration/import consideration and tests. Optional Gmail API integration would require a separate permission/privacy design; no dormant OAuth, network interception or backend is included now.
+Add commands through the typed command registry. Add provider behavior through the adapter boundary. New storage fields require validation, migration/import consideration and tests. Optional Gmail API integration would require a separate permission/privacy design; no dormant OAuth or network interception is included. The optional Cloudflare image-load service has an independent persistence and permission boundary.
+
+## Optional open tracking
+
+`src/features/open-tracking` owns a separate version-1 IndexedDB store and a serialized, sender-validated worker service. Secrets never enter core snapshots or backups. The settings form requests one exact optional Worker origin; only the background worker performs remote fetches. Draft insertion remains in the Gmail adapter and uses the native image-editing command. Activity is account-scoped and refreshed explicitly, without polling.
+
+`cloudflare/` contains the independent Worker and D1 migration. It receives opaque IDs and capabilities only. Records start paused, require manual post-send activation, then aggregate image loads with expiry. `scripts/tracking-setup.mjs` guides operators through deploying once; users then connect in settings without CLI tools. This personal-service design is not an authenticated multi-tenant platform.

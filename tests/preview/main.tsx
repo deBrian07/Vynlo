@@ -1,6 +1,7 @@
 // Local visual QA only. This harness is never a production extension entrypoint.
 import { createRoot } from 'react-dom/client';
 import { useEffect, useState } from 'react';
+import { Command as CommandIcon, FlaskConical, Moon, Sun, ArrowLeft } from 'lucide-react';
 import Workspace from '../../src/components/Workspace';
 import { CommandPalette, type Command } from '../../src/features/command-palette/CommandPalette';
 import { ErrorBoundary } from '../../src/components/ErrorBoundary';
@@ -12,6 +13,7 @@ import { contactId, conversationId, reminderId } from '../../src/services/valida
 import { DEFAULT_SETTINGS, type Backup, type Settings, type Status } from '../../src/types/model';
 import type { Request } from '../../src/types/messages';
 import '../../src/styles/app.css';
+import './preview.css';
 
 const listeners = new Set<() => void>();
 const announce = () => listeners.forEach((listener) => listener());
@@ -45,7 +47,15 @@ Object.defineProperty(window, 'chrome', {
   configurable: true,
   value: {
     runtime: {
-      sendMessage: (message: Request) => service.handle(message, sender),
+      sendMessage: (message: Request | { type: string }) =>
+        message.type === 'tracking-snapshot'
+          ? Promise.resolve({ ok: true, data: { connected: false, records: [] } })
+          : message.type.startsWith('tracking-')
+            ? Promise.resolve({
+                ok: false,
+                error: 'Remote tracking is unavailable in this fictional preview.',
+              })
+            : service.handle(message, sender),
       getManifest: () => ({ version: '0.1.0' }),
     },
     storage: {
@@ -161,23 +171,9 @@ function Preview() {
       setView(id as typeof view);
     },
   }));
-  return (
-    <div className={`vynlo options-page theme-${theme === 'dark' ? 'dark' : 'light'}`}>
-      <aside
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 12,
-          alignItems: 'center',
-          padding: '12px 24px',
-          borderBottom: '1px solid var(--line)',
-          background: 'var(--surface)',
-        }}
-      >
-        <strong>Design preview · fictional data</strong>
-        <span style={{ marginRight: 'auto', color: 'var(--muted)' }}>
-          Email, without the friction.
-        </span>
+  const tools = (
+    <div className="preview-tools">
+      <div className="preview-appearance" role="group" aria-label="Appearance">
         {(['light', 'dark'] as const).map((value) => (
           <button
             key={value}
@@ -189,19 +185,50 @@ function Preview() {
               )
             }
           >
+            {value === 'light' ? <Sun size={14} /> : <Moon size={14} />}
             {value === 'light' ? 'Light' : 'Dark'}
           </button>
         ))}
-        <button onClick={() => setPalette(true)}>Open commands</button>
+      </div>
+      <button className="preview-command" onClick={() => setPalette(true)}>
+        <CommandIcon size={15} />
+        Commands<kbd>{/Mac/.test(navigator.platform) ? '⌘ K' : 'Ctrl K'}</kbd>
+      </button>
+      <p className="preview-tagline">Email, without the friction.</p>
+      <p className="preview-disclosure">Design preview · fictional data</p>
+      <details className="preview-developer-tools">
+        <summary>Preview tools</summary>
         <button onClick={() => setDraftLab(!draftLab)}>
-          {draftLab ? 'Workspace' : 'Draft lab'}
+          <FlaskConical size={14} />
+          {draftLab ? 'Back to workspace' : 'Draft lab'}
         </button>
-      </aside>
+      </details>
+    </div>
+  );
+  return (
+    <div className={`vynlo options-page theme-${theme === 'dark' ? 'dark' : 'light'}`}>
       <ErrorBoundary>
         {draftLab ? (
-          <DraftLab />
+          <div className="preview-lab-frame">
+            <div className="preview-lab-actions">
+              <button onClick={() => setDraftLab(false)}>
+                <ArrowLeft size={15} />
+                Back to workspace
+              </button>
+              <button onClick={() => setPalette(true)}>
+                <CommandIcon size={15} />
+                Commands
+              </button>
+            </div>
+            <DraftLab />
+          </div>
         ) : (
-          <Workspace options initialView={view} onPalette={() => setPalette(true)} />
+          <Workspace
+            options
+            initialView={view}
+            onPalette={() => setPalette(true)}
+            sidebarContent={tools}
+          />
         )}
       </ErrorBoundary>
       {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}

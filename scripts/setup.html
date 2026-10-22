@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Set up Vynlo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: light-dark(#f5f4f1, #201e1d);
+        color: light-dark(#252323, #eeeae7);
+      }
+      body {
+        max-width: 560px;
+        margin: 10vh auto;
+        padding: 24px;
+      }
+      .brand {
+        color: light-dark(#6752a0, #b4a5df);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        font-size: 24px;
+      }
+      h1 {
+        font-size: 34px;
+        line-height: 1.2;
+        letter-spacing: -0.04em;
+        margin: 20px 0 12px;
+      }
+      ol {
+        padding-left: 24px;
+        margin: 32px 0;
+      }
+      li {
+        padding: 0 0 22px 8px;
+      }
+      code {
+        font-size: 14px;
+        padding: 3px 7px;
+        border-radius: 5px;
+        background: light-dark(#e9e6ee, #342e40);
+      }
+      a {
+        color: light-dark(#6752a0, #c4b3f3);
+      }
+      .note {
+        font-size: 14px;
+        opacity: 0.75;
+      }
+      footer {
+        border-top: 1px solid light-dark(#dcd8d3, #49423f);
+        margin-top: 32px;
+        padding-top: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="brand">vynlo</div>
+    <h1>Your inbox, with less friction.</h1>
+    <p>
+      Everything is already built. You only need Chrome — no terminal, Vynlo account or API keys.
+    </p>
+    <ol>
+      <li>
+        In Chrome’s address bar, type <code>chrome://extensions</code> and turn on
+        <strong>Developer mode</strong>.
+      </li>
+      <li>
+        Click <strong>Load unpacked</strong>. Select the <strong>Vynlo</strong> folder next to this
+        guide, inside <strong>release</strong>.
+      </li>
+      <li>
+        <a href="https://mail.google.com/mail/">Open Gmail</a> (or reload it). Use the
+        <strong>Vynlo</strong> control to open your workspace.
+      </li>
+    </ol>
+    <p class="note">
+      Already installed? Keep using the same installation folder and click Reload on its extension
+      card, then reload Gmail. Moving installations can create a separate local data store.
+    </p>
+    <footer class="note">
+      This is a compatibility preview. Tracking is available only when Gmail’s visible account and
+      conversation identifiers can be verified. Your Vynlo records stay in this browser profile. The
+      ZIP beside this guide is for sharing; you do not need it for these steps.
+    </footer>
+  </body>
+</html>

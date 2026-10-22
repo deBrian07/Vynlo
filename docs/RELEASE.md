@@ -9,10 +9,12 @@ pnpm install --frozen-lockfile
 pnpm check
 pnpm exec playwright install chromium
 pnpm test:e2e
-pnpm zip
+pnpm release
 ```
 
-The unpacked extension is `.output/chrome-mv3`. WXT places the distributable ZIP in `.output/`; use the filename reported by the packaging command. The archive must contain `manifest.json` at its root alongside the referenced scripts, pages and icons. Do not wrap the extension in another parent directory inside the ZIP.
+`pnpm release` builds and packages the extension, then prepares a visible `release/` directory containing `Vynlo/` (ready for Load unpacked), `START-HERE.html` (an offline installation guide) and the versioned ZIP. Users of a prepared release need only Chrome, with no developer tools or terminal commands. Generated releases are ignored by Git; a source clone requires the build step above.
+
+The original unpacked extension remains in `.output/chrome-mv3`. WXT also places the distributable ZIP in `.output/`. The archive must contain `manifest.json` at its root alongside the referenced scripts, pages and icons. Do not wrap the extension in another parent directory inside the ZIP. The release helper copies the extension without modifying its manifest or adding the guide to the extension bundle.
 
 Load the extracted archive through `chrome://extensions` → Developer mode → Load unpacked, using a fresh test profile. This checks the actual deliverable instead of a development build. Keep a backup of personal Vynlo records before changing installations or uninstalling.
 
@@ -31,7 +33,7 @@ CI validates source and creates a build artifact. The workflow does not publish 
 - [ ] Verify the supported account/thread path is practical for intended users; do not ship a misleading primary tracking promise.
 - [ ] Test pending reminders after worker/browser restart, due dashboard recovery, notification denial, snooze and resolve.
 - [ ] Review import/export, account isolation, clearing data and corrupted-input behavior.
-- [ ] Inspect the generated manifest: only `storage`, `alarms`, `notifications`; Gmail-only content matches; no development server access or remote code.
+- [ ] Inspect the generated manifest: only `storage`, `alarms`, `notifications`; Gmail-only content matches; optional Workers host access only on consent; no development server access or remote code.
 - [ ] Inspect ZIP structure and load that exact artifact in a fresh Chrome profile.
 - [ ] Review dependencies and bundled code for unapproved network use and secret/user-data leakage.
 - [ ] Record bundle sizes and any performance measurements without claiming unmeasured improvements.
@@ -53,7 +55,7 @@ CI validates source and creates a build artifact. The workflow does not publish 
 
 Vynlo adds a local productivity panel to Gmail. Mark a supported conversation Needs Reply, Waiting, Follow Up or Resolved, then review your next steps in one dashboard. Set a reminder, save a contact note or insert a snippet you wrote into your draft.
 
-Your Vynlo records stay in your browser profile. There is no Vynlo account, subscription, cloud service, AI provider or advertising. Data is exportable as JSON. Local storage and exported files are not encrypted by Vynlo.
+Your Vynlo records stay in your browser profile. There is no Vynlo account, subscription, AI provider or advertising. Optional email open tracking uses a separately configured Cloudflare service. Core data is exportable as JSON; tracking credentials and activity are excluded. Local storage and exported files are not encrypted by Vynlo.
 
 Tracking is manual. Vynlo does not detect replies or send email. Desktop reminders depend on Chrome and operating-system availability; due items stay visible in the dashboard. The compatibility preview supports corroborated legacy routes and a restricted modern opaque thread format. Ambiguous, draft and unsupported routes disable tracking. Check the published compatibility guide before installation.
 
@@ -68,7 +70,7 @@ Publish this draft only after filling the support/privacy links and validating t
 | `notifications`             | Show optional generic desktop reminders requested by the user.                                                         |
 | Gmail content-script access | Display controls in Gmail, identify the supported current account/thread and insert requested plain text into a draft. |
 
-The extension handles account/contact email addresses, minimal communication references, user-authored notes/snippets, dates and settings. It does not transmit these to Vynlo or an analytics provider. Do not describe the product as handling no user data merely because processing is local. The current implementation has no browsing-history collection, credentials, OAuth tokens, mailbox body archive, tracking pixels, remote code or automatic sending.
+The extension handles account/contact email addresses, minimal communication references, user-authored notes/snippets, dates and settings. It does not transmit these to Vynlo or an analytics provider. Do not describe the product as handling no user data merely because processing is local. The current implementation has no browsing-history collection, credentials, OAuth tokens, mailbox body archive, automatic tracking pixels, remote code or automatic sending. Chosen drafts can include explicitly requested tracking pixels; random IDs and event times/counts are stored remotely. Cloudflare processes request metadata.
 
 The publisher must review the dashboard's current disclosure categories and answer them against the submitted build. The [User Data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq) treats local collection/use as data handling; the [Limited Use policy](https://developer.chrome.com/docs/webstore/program-policies/limited-use) constrains purpose and transfer. Review the [privacy policy draft](PRIVACY.md) and publish a stable policy URL. These checks do not constitute store approval.
 
@@ -86,3 +88,7 @@ The publisher must review the dashboard's current disclosure categories and answ
 ## Notification behavior to disclose
 
 Chrome alarms may be delayed and do not wake a sleeping device. Vynlo reconstructs schedules when its service worker resumes; it cannot notify while Chrome cannot run. See the [Chrome alarms documentation](https://developer.chrome.com/docs/extensions/reference/api/alarms). A persisted notification attempt can be missed if the worker crashes immediately before dispatch. The due record remains available, and snoozing schedules another attempt.
+
+## Open-tracking release gate
+
+Run the SQLite-backed Worker and extension-service tests. Deploy to a test Cloudflare account only with owner authorization; verify D1 migrations, rate-limit bindings, activation, image loads, expiry/revocation and an extension installed with optional permission denied/allowed. Test actual Gmail draft save/undo/image retention and recipient proxy behavior using synthetic messages. These live checks have not been executed in this branch. No cloud service or extension was published during implementation.

@@ -11,6 +11,8 @@
 - Added personalized plain-text snippet previews. A modal is closed before handing focus back to a composer; the adapter refuses insertion if that exact composer cannot receive focus. This prevents accidentally inserting into a variable input while the Gmail editor is inert.
 - Corrected startup behavior so subsequent storage changes do not reopen a deliberately closed workspace. Request generations prevent stale reads from replacing the current account view.
 - Added strictly corroborated modern thread-route support; unknown encodings, drafts and stale or ambiguous headings remain disabled. See [Gmail compatibility](GMAIL_COMPATIBILITY.md).
+- Removed the separate design-preview header. Theme controls, commands, tagline and fictional-data disclosure now live inside the workspace sidebar; draft tools expand on demand.
+- Added `pnpm release` to produce a visible `release/Vynlo` folder, ZIP and offline three-step installation guide. A prepared build requires Chrome only; developer tooling is needed only when building source.
 
 ## Executed validation
 
@@ -19,6 +21,7 @@
 - The production MV3 build and the separate design-preview build succeeded.
 - Manually exercised the actual components in a Chrome Guest window against the local fictional-data fixture: light and dark views, command palette search/navigation, opening settings with arrow keys and Enter, unsaved-settings navigation guard, due filtering, snooze persistence, and responsive layout at increased browser zoom. The separate fictional draft lab also exercised the actual adapter with Chromium native editing: literal `<Acme>` text was inserted after existing content, focus returned to the correct editor, and Cmd+Z restored the original draft. This verifies the native editing path in that fixture, not Gmail autosave.
 - Compared the rendered command menu against the public reference. No proprietary images, fonts, icons or code were added to the extension.
+- Re-ran formatting, ESLint, TypeScript, all 103 tests and production build after the sidebar/setup changes. Built the release, checked MV3 permissions and referenced resources, and verified the ZIP and visible unpacked folder match the production build byte for byte. Opened the setup guide in Chrome and exercised the relocated theme, commands and draft-lab controls in the fictional-data fixture. These checks do not install the extension or verify authenticated Gmail.
 
 ## Remaining release gates
 

@@ -11,3 +11,8 @@ test-results/
 .env*
 !.env.example
 artifacts/
+release/
+
+node_modules
+cloudflare/.setup/
+.wrangler/

@@ -259,3 +259,15 @@ describe('background persistence and isolation', () => {
     expect(response.data.snippets.map((snippet) => snippet.title)).toEqual(['Mine']);
   });
 });
+
+it('opens the requested tracking setup section and rejects unknown destinations', async () => {
+  expect((await service.handle({ type: 'options', section: 'open-tracking' }, gmail)).ok).toBe(
+    true,
+  );
+  expect(platform.openOptions).toHaveBeenCalledWith('open-tracking');
+  vi.mocked(platform.openOptions).mockClear();
+  expect((await service.handle({ type: 'options', section: 'https://evil.test' }, gmail)).ok).toBe(
+    false,
+  );
+  expect(platform.openOptions).not.toHaveBeenCalled();
+});

@@ -5,3 +5,4 @@ pnpm-lock.yaml
 artifacts
 test-results
 playwright-report
+release

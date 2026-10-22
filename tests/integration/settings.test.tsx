@@ -2,6 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsView } from '../../src/features/settings/SettingsView';
 import { DEFAULT_SETTINGS, type Snapshot } from '../../src/types/model';
+vi.mock('../../src/features/open-tracking/client', () => ({
+  trackingClient: { snapshot: async () => ({ connected: false, records: [] }) },
+}));
 
 function snapshot(): Snapshot {
   return {

@@ -18,17 +18,24 @@ import { CommandPalette } from '../features/command-palette/CommandPalette';
 import { createCommandRegistry } from '../features/command-palette/registry';
 import { Loading, Modal } from './ui';
 import { ThreadControl, threadControlPosition } from '../features/conversations/ThreadControl';
+import { DraftTracking } from '../features/open-tracking/DraftTracking';
+import { trackingClient } from '../features/open-tracking/client';
 const Workspace = lazy(() => import('./Workspace'));
+type WorkspaceView = Settings['landingView'] | 'open-tracking';
 
 export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
   const [context, setContext] = useState<GmailContext>(() => adapter.getContext());
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(false);
-  const [view, setView] = useState<Settings['landingView']>('dashboard');
+  const [view, setView] = useState<WorkspaceView>('dashboard');
   const [edit, setEdit] = useState(0);
   const [remind, setRemind] = useState(0);
   const [help, setHelp] = useState(false);
+  const [draftTracking, setDraftTracking] = useState<string | null>(null);
+  const [checkingTracking, setCheckingTracking] = useState(false);
+  const [trackingNextStep, setTrackingNextStep] = useState<string | null>(null);
+  const trackingCheck = useRef(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [ready, setReady] = useState(false);
@@ -126,7 +133,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
     };
   }, []);
   const show = useCallback(
-    (next = settings.landingView) => {
+    (next: WorkspaceView = settings.landingView) => {
       adapter.captureComposer();
       setView(next);
       setOpen(true);
@@ -288,6 +295,43 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
               Track conversation
             </button>
           )}
+          {context.hasComposer && context.account && (
+            <button
+              className="launcher-track"
+              disabled={checkingTracking}
+              onPointerDown={() => adapter.captureComposer()}
+              onClick={() => {
+                if (trackingCheck.current) return;
+                adapter.captureComposer();
+                const account = adapter.getCurrentAccount();
+                const composer = adapter.findActiveComposer();
+                if (!account || !composer) return;
+                trackingCheck.current = true;
+                setCheckingTracking(true);
+                void perform(async () => {
+                  const connection = await trackingClient.snapshot(account.id);
+                  if (!connection.connected) {
+                    await request({ type: 'options', section: 'open-tracking' });
+                    setNotice('Connect open tracking in Settings, then return to your draft.');
+                  } else {
+                    if (
+                      adapter.getCurrentAccount()?.id !== account.id ||
+                      adapter.findActiveComposer() !== composer
+                    )
+                      throw new Error(
+                        'The account or draft changed. Choose Track this draft again.',
+                      );
+                    setDraftTracking(account.id);
+                  }
+                }).finally(() => {
+                  trackingCheck.current = false;
+                  setCheckingTracking(false);
+                });
+              }}
+            >
+              {checkingTracking ? 'Checking…' : 'Track this draft'}
+            </button>
+          )}
           <button
             className="launcher-command"
             aria-label="Open command palette"
@@ -322,6 +366,30 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
         </Suspense>
       )}
       {palette && <CommandPalette commands={commands} onClose={() => setPalette(false)} />}
+      {draftTracking && (
+        <DraftTracking
+          adapter={adapter}
+          accountId={draftTracking}
+          onClose={() => setDraftTracking(null)}
+          onDone={() => setTrackingNextStep(draftTracking)}
+        />
+      )}
+      {trackingNextStep === context.account?.id && !open && !error && !notice && (
+        <div className="toast tracking-next-step" role="status">
+          <span>Tracking image added. Send in Gmail, then activate tracking.</span>
+          <button
+            onClick={() => {
+              show('open-tracking');
+              setTrackingNextStep(null);
+            }}
+          >
+            Review tracked drafts
+          </button>
+          <button aria-label="Dismiss tracking next step" onClick={() => setTrackingNextStep(null)}>
+            ×
+          </button>
+        </div>
+      )}
       {help && (
         <Modal title="Keyboard shortcuts" onClose={() => setHelp(false)}>
           <dl className="shortcut-list">

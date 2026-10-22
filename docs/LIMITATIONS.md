@@ -36,3 +36,9 @@ Automatic theme detection uses page background luminance and an OS fallback; Gma
 ## Release status
 
 The project includes a build and automated validation workflow. A configured workflow is not evidence that it ran on GitHub. A ZIP is not evidence of store approval. Authenticated Gmail validation, final screenshots, a public repository/support URL and publisher review remain separate release gates.
+
+## Optional email open tracking
+
+This branch adds an opt-in Cloudflare backend. It does not prove reading, unread state, delivery, individual recipient identity or sending. Drafts start paused and must be activated manually after sending. Initial image proxy caches can prevent later signals, and your own sent-message views can count as opens. Read receipts, automatic send interception and retroactive tracking are not implemented. Activity refresh is manual. Only standard HTTPS Workers subdomains are accepted.
+
+Personal deployments use a creation key, not multi-user accounts. Local history is capped at 100 entries; remove old records to add more. Remote records expire after 30 days, while local labels remain until removed. Core backups exclude the separate tracking store and keys. Disconnect/clear/uninstall do not revoke remote pixels; delete individual entries first. No live Cloudflare or authenticated Gmail testing has been performed for this module.

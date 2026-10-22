@@ -27,7 +27,7 @@ Shortcuts do not run while typing, including in compose editors. Browser, OS and
 
 ## Local data and scale
 
-Data belongs to one extension installation in one browser profile. There is no cross-device sync or encryption. Uninstalling or changing the extension ID can make records unavailable; export first. Backups merge missing records, keep existing local IDs and replace settings. Import is not an exact rollback of local records.
+Data belongs to one extension installation in one browser profile. There is no continuous cross-device sync. Browser storage is not encrypted. Data protection offers encrypted manual files and optional automatic Cloudflare backups. Uninstalling or changing the extension ID can make records unavailable; export first. Backups merge missing records, keep existing local IDs and replace settings. Import is not an exact rollback of local records.
 
 Account-scoped snapshots use IndexedDB account indexes. Mutations and scheduler reconciliation still validate full record collections in memory. It is designed for a personal tracker, not a mailbox archive. Imports are limited to 20,000 records per collection and field lengths are validated, but that limit is not a measured performance guarantee. Large workspaces need targeted indexed queries and profiling before stronger scalability claims.
 
@@ -36,3 +36,11 @@ Automatic theme detection uses page background luminance and an OS fallback; Gma
 ## Release status
 
 The project includes a build and automated validation workflow. A configured workflow is not evidence that it ran on GitHub. A ZIP is not evidence of store approval. Authenticated Gmail validation, final screenshots, a public repository/support URL and publisher review remain separate release gates.
+
+## Reinstall recovery
+
+Normal updates preserve extension-owned storage for the same extension ID and browser profile. Uninstall/reinstall removes local records; moving an unpacked folder can change the ID. Save a recovery file outside Chrome before doing either. Vynlo cannot recover data for which no external copy/key exists. The branch does not hardcode a new manifest key because changing the current installation ID would hide existing records. Use the same unpacked path, or the eventual consistent Web Store identity.
+
+Cloud snapshots upload only after explicit opt-in and saved recovery-file confirmation. Sleep, suspension, network errors, revoked host permissions and quotas can delay backups. Status indicates the last confirmed upload. Local backup timestamps indicate file preparation, not verification that the browser finished writing a download. Retain the downloaded file and password yourself. Restores merge existing IDs and replace preferences, then leave automatic uploads paused until explicitly enabled. A failed addon step leaves an explicit retryable recovery journal.
+
+The optional service stores the latest snapshot only. Concurrent uploads stop with a conflict; they do not merge different devices. Deleting records and then creating a new snapshot replaces that latest copy. Independent local copies remain important. No live Cloudflare deployment or browser uninstall/reinstall was executed during this implementation.

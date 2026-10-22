@@ -2,7 +2,7 @@
 
 Email, without the friction.
 
-Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, follow-up reminders, snippets and contact notes to Gmail. Your records stay in your browser profile. There is no Vynlo account, server, subscription or AI service.
+Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, follow-up reminders, snippets and contact notes to Gmail. Your records stay in your browser profile. Core features require no Vynlo account, server, subscription or AI service. Automatic encrypted Cloudflare backups are optional and off by default.
 
 **Compatibility preview:** the first version supports a deliberately narrow Gmail identity path. Tracking requires a visible conversation heading corroborated against its URL. Both legacy hexadecimal routes and a restricted modern `f` token format are supported when the visible identifiers agree; draft tokens, unknown formats and ambiguous views are disabled. Vynlo disables tracking when it cannot establish identity. Automated fixtures do not establish live Gmail compatibility; see the [compatibility checklist](docs/GMAIL_COMPATIBILITY.md) before relying on this release.
 
@@ -15,6 +15,7 @@ Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, 
 - Save categorized snippets, fill variables such as `{{first_name}}` and insert plain text into a supported Gmail composer. A new install includes starter templates you can edit or delete.
 - Keep contact notes and tags under each Gmail account.
 - Choose light, dark or automatic themes; export, import or clear local data in settings.
+- Download password-encrypted recovery files or explicitly enable automatic encrypted cloud backups. Restore from a file after reinstalling, with a preview before anything changes.
 
 Vynlo never sends email. Waiting means you manually marked the conversation; reminders do not prove that no reply has arrived. Snippets are shared across your local Vynlo workspace; conversations, reminders and contacts are account-scoped.
 
@@ -56,7 +57,7 @@ For snippets, focus the intended Gmail draft, then open Vynlo's snippet picker u
 
 Shortcuts deliberately do not fire while typing in an input or composer, preserving Gmail's link-insertion command. Change bindings in settings if another extension or browser shortcut conflicts. The command palette uses arrow keys, Enter and Escape. It also opens from inside the workspace. Mark Waiting/Resolved shortcuts update the thread with a brief confirmation, without forcing the dashboard open.
 
-Backups contain all accounts, snippets, contact notes, conversations, reminders and settings. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; files are readable JSON, not encrypted archives.
+Legacy JSON exports contain all accounts, snippets, contact notes, conversations, reminders and settings. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; legacy files are readable JSON, not encrypted archives. The new **Data protection** panel creates password-encrypted files instead and can also preserve installed open-tracking capabilities.
 
 ## Development
 
@@ -74,9 +75,9 @@ The stack is TypeScript, React, WXT/Vite, Tailwind CSS, Lucide and Zustand. Stru
 
 ## Privacy and limits
 
-Vynlo reads the visible Gmail structures needed to identify the current account, supported thread and composer. It stores minimal conversation references and user-created data. It does not read entire mailboxes, store message bodies or attachments, intercept Gmail traffic, request OAuth or transmit records to a server.
+Vynlo reads the visible Gmail structures needed to identify the current account, supported thread and composer. It stores minimal conversation references and user-created data. It does not read entire mailboxes, store message bodies or attachments, intercept Gmail traffic, request OAuth or transmit plaintext workspace records to a server. Optional backups send encrypted snapshots to the user-configured Cloudflare Worker; Cloudflare handles request metadata.
 
-Local data is **not encrypted by Vynlo**. Anyone with access to your browser profile may be able to read it. Export files and text you insert into Gmail need the same care as other personal documents. Normal Gmail behavior, including syncing a draft you edit, remains controlled by Google.
+Local browser data and legacy JSON exports are **not encrypted by Vynlo**. New recovery files and optional cloud snapshots use authenticated AES-256-GCM encryption. Cloud backups require explicit consent and a saved recovery file; the encryption key is not uploaded. See [data protection](docs/BACKUPS.md). Anyone with access to your browser profile may be able to read it. Export files and text you insert into Gmail need the same care as other personal documents. Normal Gmail behavior, including syncing a draft you edit, remains controlled by Google.
 
 Read the [privacy policy draft](docs/PRIVACY.md), [security model](docs/SECURITY.md) and [known limitations](docs/LIMITATIONS.md). Automatic reply detection, smart inboxes, cloud synchronization and Gmail API access are outside this release. The [roadmap](docs/ROADMAP.md) prioritizes broader verified Gmail support first.
 

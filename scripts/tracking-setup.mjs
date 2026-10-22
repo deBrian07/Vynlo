@@ -120,26 +120,86 @@ async function revealConnection(file) {
   });
 }
 
-async function verify(endpoint, secret) {
-  const health = await globalThis.fetch(`${endpoint}/health`, {
-    redirect: 'error',
-    signal: globalThis.AbortSignal.timeout(15000),
-  });
-  if (!health.ok) throw new SetupError('The deployed service is not responding.');
-  const identity = await health.json();
+export async function verify(endpoint, secret, fetcher = globalThis.fetch) {
+  endpoint = normalizeEndpoint(endpoint);
+  async function request(route, token, method = 'GET', body) {
+    const result = await fetcher(`${endpoint}${route}`, {
+      method,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      redirect: 'error',
+      signal: globalThis.AbortSignal.timeout(15000),
+    });
+    if (!result.ok)
+      throw new SetupError('The deployment check failed. Check its schema and bindings.');
+    return result.json();
+  }
+  const identity = await request('/health');
   if (identity?.service !== 'vynlo-tracking' || identity?.version !== 1) {
     throw new SetupError('The deployed service did not identify itself as Vynlo.');
   }
-  const result = await globalThis.fetch(`${endpoint}/v1/check`, {
-    headers: { Authorization: `Bearer ${secret}` },
-    redirect: 'error',
-    signal: globalThis.AbortSignal.timeout(15000),
-  });
-  if (!result.ok) throw new SetupError('The service did not accept the connection key.');
-  const body = await result.json();
-  if (body?.ok !== true) {
-    throw new SetupError('The deployed service did not identify itself as Vynlo.');
+  const check = await request('/v1/check', secret);
+  if (check?.ok !== true) throw new SetupError('The service did not accept the connection key.');
+  const credentials = {
+    id: randomBytes(32).toString('hex'),
+    readToken: randomBytes(32).toString('hex'),
+    deleteToken: randomBytes(32).toString('hex'),
+  };
+  const route = `/v1/trackings/${credentials.id}`;
+  let failure;
+  let cleanupFailed = false;
+  // Delete even after an uncertain POST response: D1 may have committed before a timeout.
+  try {
+    const created = await request('/v1/trackings', secret, 'POST', credentials);
+    if (
+      created?.pixelUrl !== `${endpoint}/p/${credentials.id}.gif` ||
+      !Number.isSafeInteger(created?.expiresAt) ||
+      created.expiresAt <= Date.now()
+    )
+      throw new SetupError('The deployment returned an invalid setup test record.');
+    const paused = await request(route, credentials.readToken);
+    if (paused?.armedAt !== null || paused?.openCount !== 0) {
+      throw new SetupError('The deployment did not create a paused setup test record.');
+    }
+    const activation = await request(`${route}/activate`, credentials.deleteToken, 'POST');
+    if (
+      activation?.ok !== true ||
+      !Number.isSafeInteger(activation?.armedAt) ||
+      activation.armedAt <= 0
+    ) {
+      throw new SetupError('The deployment could not activate the setup test record.');
+    }
+    const active = await request(route, credentials.readToken);
+    if (active?.armedAt !== activation.armedAt || active?.openCount !== 0) {
+      throw new SetupError('The deployment did not persist the setup test record correctly.');
+    }
+  } catch (error) {
+    failure = error;
+  } finally {
+    try {
+      const response = await fetcher(`${endpoint}${route}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${credentials.deleteToken}` },
+        redirect: 'error',
+        signal: globalThis.AbortSignal.timeout(15000),
+      });
+      if (response.status !== 404 && (!response.ok || (await response.json())?.deleted !== true)) {
+        cleanupFailed = true;
+      }
+    } catch {
+      cleanupFailed = true;
+    }
   }
+  if (cleanupFailed) {
+    throw new SetupError(
+      'The setup test record could not be deleted. Check Cloudflare D1 and retry setup; ' +
+        'the temporary record expires after 30 days. Setup has not reported success.',
+    );
+  }
+  if (failure) throw failure;
 }
 
 export async function main() {
@@ -163,6 +223,7 @@ export async function main() {
       'Cloudflare receives request metadata. No message bodies, subjects or email addresses are uploaded.\n' +
       'A Cloudflare account is required. Free-plan limits apply; paid plans can incur charges.\n' +
       'This helper will not purchase a plan or accept terms for you.\n' +
+      'The final check creates, activates and deletes a temporary test record. No pixel is loaded.\n' +
       'Your existing Vynlo features work without this setup.\n\n',
   );
   if ((await ask('Create/update your Cloudflare service? Type yes to continue: ')) !== 'yes') {
@@ -235,7 +296,8 @@ export async function main() {
   await savePrivate(connectionPath, { endpoint, secret: secrets.ADMIN_SECRET });
   try {
     await verify(endpoint, secrets.ADMIN_SECRET);
-  } catch {
+  } catch (error) {
+    if (error instanceof SetupError) throw error;
     throw new SetupError(
       'Published, but the connection check failed. Wait a minute and rerun setup. Your key is preserved.',
     );

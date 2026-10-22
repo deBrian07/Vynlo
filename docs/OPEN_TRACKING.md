@@ -43,7 +43,10 @@ opens with the private connection file selected. Open that file locally and copy
 `endpoint` into **Worker URL** and `secret` into **Connection key** in Vynlo's form.
 If your file manager cannot open, use the full file path printed by the helper:
 **`cloudflare/.setup/connection.json`**. The helper tests the deployed
-connection before reporting success. It does not print your key in terminal output
+connection and D1 schema by creating, activating, reading and deleting a temporary
+record before reporting success. It never loads the test pixel or fabricates an
+open event. A failed cleanup is reported as a setup failure; a remaining temporary
+record expires after 30 days. It does not print your key in terminal output
 or pass it in command arguments.
 
 The helper uses pinned Wrangler **4.151.3**, fetched through `pnpm dlx`. Cloudflare

@@ -205,3 +205,39 @@ it('preserves last valid events when the remote response is malformed', async ()
   );
   expect(await database.read()).toEqual([old]);
 });
+
+it('waits for an in-flight creation before clearing local capabilities', async () => {
+  const s = service();
+  await connect(s);
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  s.fetcher.mockImplementationOnce(async (input, init) => {
+    await blocked;
+    return worker.fetch(new Request(input, init), env);
+  });
+  const creating = s.handle(
+    { type: 'tracking-create', accountId: 'a@example.com', label: 'Draft' },
+    gmail,
+  );
+  await vi.waitFor(() => expect(s.fetcher).toHaveBeenCalledTimes(3));
+  const clearing = s.clearLocal();
+  release();
+  expect((await creating).ok).toBe(true);
+  await clearing;
+  expect(await database.read()).toEqual([]);
+  expect(stored).toBeNull();
+});
+
+it('does not claim activation when the Worker returns an invalid acknowledgment', async () => {
+  const s = service();
+  await connect(s);
+  const row = await create(s);
+  s.fetcher.mockImplementationOnce(async () => Response.json({ ok: true, armedAt: 'yesterday' }));
+  expect(
+    (await s.handle({ type: 'tracking-activate', accountId: 'a@example.com', id: row.id }, gmail))
+      .ok,
+  ).toBe(false);
+  expect((await database.read())[0]?.armedAt).toBeNull();
+});

@@ -3,6 +3,7 @@ import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Confirm, Empty, Modal } from '../../components/ui';
 import type { Contact } from '../../types/model';
 import type { Request } from '../../types/messages';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 
 export function Contacts({
   contacts,
@@ -16,7 +17,6 @@ export function Contacts({
   const [query, setQuery] = useState('');
   const [edit, setEdit] = useState<Contact | 'new' | null>(null);
   const [remove, setRemove] = useState<Contact | null>(null);
-  const [error, setError] = useState('');
   const filtered = contacts.filter((c) =>
     `${c.email} ${c.name} ${c.note} ${c.tags.join(' ')}`
       .toLowerCase()
@@ -55,11 +55,6 @@ export function Contacts({
           Add someone’s email and a note yourself. Vynlo doesn’t scrape your contacts or guess who a
           conversation is about.
         </Empty>
-      )}
-      {error && (
-        <p className="error-box" role="alert">
-          {error}
-        </p>
       )}
       {filtered.map((c) => (
         <article className="contact-card" key={c.id}>
@@ -100,7 +95,17 @@ export function Contacts({
           key={edit === 'new' ? 'new' : edit.id}
           contact={edit === 'new' ? undefined : edit}
           accountId={accountId}
-          onSave={onSave}
+          onSave={async (message) => {
+            if (
+              edit === 'new' &&
+              message.type === 'save-contact' &&
+              contacts.some((c) => c.email === message.contact.email)
+            )
+              throw new Error(
+                'You already have a note for this email address. Edit that contact to keep your existing notes.',
+              );
+            await onSave(message);
+          }}
           onClose={() => setEdit(null)}
         />
       )}
@@ -108,13 +113,10 @@ export function Contacts({
         <Confirm
           title="Delete contact note?"
           onClose={() => setRemove(null)}
-          onConfirm={() =>
-            void onSave({ type: 'delete-contact', accountId: remove.accountId, id: remove.id })
-              .then(() => setRemove(null))
-              .catch((e) =>
-                setError(e instanceof Error ? e.message : 'Contact note could not be deleted.'),
-              )
-          }
+          onConfirm={async () => {
+            await onSave({ type: 'delete-contact', accountId: remove.accountId, id: remove.id });
+            setRemove(null);
+          }}
         >
           Your note for {remove.email} will be removed from this browser.
         </Confirm>
@@ -139,104 +141,114 @@ function ContactEditor({
   const [tags, setTags] = useState(contact?.tags.join(', ') ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const close = () => {
-    if (
-      (email !== (contact?.email ?? '') ||
-        name !== (contact?.name ?? '') ||
-        note !== (contact?.note ?? '') ||
-        tags !== (contact?.tags.join(', ') ?? '')) &&
-      !window.confirm('Discard unsaved contact changes?')
-    )
-      return;
-    onClose();
-  };
+  const { requestClose: close, confirmation } = useUnsavedChanges(
+    email !== (contact?.email ?? '') ||
+      name !== (contact?.name ?? '') ||
+      note !== (contact?.note ?? '') ||
+      tags !== (contact?.tags.join(', ') ?? ''),
+    onClose,
+    busy,
+  );
   return (
-    <Modal title={contact ? 'Edit contact note' : 'Add contact note'} onClose={close}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setBusy(true);
-          void onSave({
-            type: 'save-contact',
-            contact: {
-              accountId,
-              email: email.trim().toLowerCase(),
-              name: name.trim(),
-              note,
-              tags: [
-                ...new Set(
-                  tags
-                    .split(',')
-                    .map((t) => t.trim())
-                    .filter(Boolean),
-                ),
-              ],
-            },
-          })
-            .then(onClose)
-            .catch((e) =>
-              setError(e instanceof Error ? e.message : 'Contact note could not be saved.'),
-            )
-            .finally(() => setBusy(false));
-        }}
-      >
-        <div className="form-grid">
-          <label className="field">
-            <span>Email address</span>
-            <input
-              aria-label="Contact email"
-              type="email"
-              required
-              disabled={!!contact}
-              maxLength={254}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Display name</span>
-            <input
-              aria-label="Display name"
-              maxLength={200}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Notes</span>
-            <textarea
-              aria-label="Contact notes"
-              maxLength={10000}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Tags</span>
-            <input
-              aria-label="Contact tags"
-              maxLength={2000}
-              placeholder="Colleague, design, coffee"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-            />
-            <small>Separate tags with commas. Up to 50 tags, 100 characters each.</small>
-          </label>
-          {error && (
-            <p role="alert" className="error-box">
-              {error}
-            </p>
-          )}
-        </div>
-        <footer className="form-actions">
-          <button type="button" disabled={busy} onClick={close}>
-            Cancel
-          </button>
-          <button className="primary" disabled={busy}>
-            {busy ? 'Saving…' : 'Save contact'}
-          </button>
-        </footer>
-      </form>
-    </Modal>
+    <>
+      <Modal title={contact ? 'Edit contact note' : 'Add contact note'} onClose={close} busy={busy}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (busy) return;
+            const parsedTags = [
+              ...new Set(
+                tags
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean),
+              ),
+            ];
+            if (parsedTags.length > 50 || parsedTags.some((t) => t.length > 100)) {
+              setError('Use up to 50 tags, with no more than 100 characters each.');
+              return;
+            }
+            setError('');
+            setBusy(true);
+            void onSave({
+              type: 'save-contact',
+              contact: {
+                accountId,
+                email: email.trim().toLowerCase(),
+                name: name.trim(),
+                note,
+                tags: parsedTags,
+              },
+            })
+              .then(onClose)
+              .catch((e) =>
+                setError(e instanceof Error ? e.message : 'Contact note could not be saved.'),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          <div className="form-grid">
+            <label className="field">
+              <span>Email address</span>
+              <input
+                aria-label="Contact email"
+                type="email"
+                required
+                disabled={!!contact || busy}
+                maxLength={254}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Display name</span>
+              <input
+                aria-label="Display name"
+                disabled={busy}
+                maxLength={200}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Notes</span>
+              <textarea
+                aria-label="Contact notes"
+                disabled={busy}
+                maxLength={10000}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Tags</span>
+              <input
+                aria-label="Contact tags"
+                disabled={busy}
+                maxLength={2000}
+                placeholder="Colleague, design, coffee"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+              />
+              <small>Separate tags with commas. Up to 50 tags, 100 characters each.</small>
+            </label>
+            {error && (
+              <p role="alert" className="error-box">
+                {error}
+              </p>
+            )}
+          </div>
+          <footer className="form-actions">
+            <button type="button" disabled={busy} onClick={close}>
+              Cancel
+            </button>
+            <button className="primary" disabled={busy}>
+              {busy ? 'Saving…' : 'Save contact'}
+            </button>
+          </footer>
+        </form>
+      </Modal>
+      {confirmation}
+    </>
   );
 }

@@ -330,9 +330,13 @@ export function createTrackingService(
       queue = next.catch(() => undefined);
       return next;
     },
-    async clearLocal() {
-      await platform.setConfig(null);
-      await database.clear();
+    clearLocal() {
+      const next = queue.then(async () => {
+        await platform.setConfig(null);
+        await database.clear();
+      });
+      queue = next.catch(() => undefined);
+      return next;
     },
   };
 }

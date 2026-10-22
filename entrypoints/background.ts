@@ -5,12 +5,20 @@ import { createTrackingService } from '../src/features/open-tracking/service';
 
 export default defineBackground(() => {
   // Content scripts use validated messages, never direct access to stored capabilities.
-  void chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+  const trustedStorage = chrome.storage.local
+    .setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
+    .then(() => true)
+    .catch(() => false);
   const tracking = createTrackingService({
     extensionId: chrome.runtime.id,
-    getConfig: async () =>
-      (await chrome.storage.local.get('trackingConnection')).trackingConnection,
+    getConfig: async () => {
+      if (!(await trustedStorage))
+        throw new Error('Tracking credential protection is unavailable. Reload the extension.');
+      return (await chrome.storage.local.get('trackingConnection')).trackingConnection;
+    },
     setConfig: async (value) => {
+      if (!(await trustedStorage))
+        throw new Error('Tracking credential protection is unavailable. Reload the extension.');
       if (value) await chrome.storage.local.set({ trackingConnection: value });
       else await chrome.storage.local.remove('trackingConnection');
     },

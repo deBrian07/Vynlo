@@ -12,6 +12,7 @@ import { request } from '../../services/client';
 import { validBackup } from '../../services/validation';
 import { validateShortcuts, formatShortcut } from '../shortcuts/shortcuts';
 import { Confirm } from '../../components/ui';
+import { BackupPanel } from '../backups/BackupPanel';
 
 function download(data: unknown, name: string) {
   const url = URL.createObjectURL(
@@ -392,11 +393,12 @@ export function SettingsView({
           </label>
         </div>
       </div>
+      <BackupPanel onRestored={onRefresh} restoreDisabled={dirty || busy} />
       <div className="settings-section">
         <h2>Data and privacy</h2>
         <p className="muted">
-          <ShieldCheck size={14} /> Your data stays in this browser profile. It is not encrypted by
-          Vynlo. Backups contain your notes and account addresses; keep them somewhere private.
+          <ShieldCheck size={14} /> Your working data stays in this browser profile and is not
+          encrypted by Vynlo. Use Data protection above to save an encrypted backup outside Chrome.
         </p>
         <div className="data-actions">
           <button
@@ -405,13 +407,13 @@ export function SettingsView({
               void run(async () => {
                 const backup = await request({ type: 'export' });
                 download(backup, `vynlo-backup-${new Date().toISOString().slice(0, 10)}.json`);
-              }, 'Backup downloaded')
+              }, 'Legacy export prepared')
             }
           >
-            <Download size={13} /> Export all data
+            <Download size={13} /> Export legacy JSON
           </button>
           <label className="file-button">
-            <Upload size={13} /> Import backup
+            <Upload size={13} /> Import legacy JSON
             <input
               type="file"
               disabled={busy}
@@ -434,10 +436,13 @@ export function SettingsView({
             Vynlo reads limited visible Gmail interface metadata to identify the account, active
             conversation title and draft you choose. It stores account addresses, tracked thread
             references, your notes, reminders, templates and preferences in extension-owned
-            IndexedDB and Chrome local storage. It does not store message bodies or attachments,
-            transmit your data, use analytics, request OAuth, detect replies or send email. Data is
-            scoped to this Chrome profile and is not encrypted by Vynlo. Uninstalling removes
-            extension data; export a backup first. Source privacy policy: docs/PRIVACY.md.
+            IndexedDB and Chrome local storage. It does not store message bodies or attachments, use
+            analytics, request OAuth, detect replies or send email. Automatic cloud backups are
+            optional and off by default. When enabled, only encrypted backup content is sent to your
+            chosen Cloudflare service. Working data is scoped to this Chrome profile and is not
+            encrypted by Vynlo. Uninstalling removes it; keep a backup and recovery file outside
+            Chrome first. Legacy JSON exports are unencrypted. Source privacy policy:
+            docs/PRIVACY.md.
           </p>
         </details>
       </div>
@@ -471,7 +476,9 @@ export function SettingsView({
           }
         >
           This permanently removes all Vynlo conversations, notes, reminders, snippets and
-          preferences in this browser profile. Export a backup first. Gmail messages are unchanged.
+          preferences and backup connection in this browser profile. Save an encrypted backup first.
+          Downloaded files and remote backups remain; pausing or clearing does not delete them.
+          Gmail messages are unchanged.
         </Confirm>
       )}
       {pendingImport && (

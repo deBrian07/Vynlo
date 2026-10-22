@@ -1,3 +1,14 @@
+vi.mock('../../src/features/backups/client', () => ({
+  backupClient: {
+    status: vi.fn(async () => ({
+      automatic: false,
+      configured: false,
+      pending: false,
+      conflict: false,
+      recoveryPending: false,
+    })),
+  },
+}));
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsView } from '../../src/features/settings/SettingsView';

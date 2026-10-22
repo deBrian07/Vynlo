@@ -215,24 +215,21 @@ describe('background persistence and isolation', () => {
     const first = await seeded.handle({ type: 'export' }, trusted);
     if (!first.ok || !first.data || !('snippets' in first.data))
       throw new Error('missing snippets');
-    expect(first.data.snippets).toHaveLength(6);
+    const originalIds = first.data.snippets.map((snippet) => snippet.id);
+    expect(originalIds).toHaveLength(6);
     await seeded.reconcile();
     const second = await seeded.handle({ type: 'export' }, trusted);
     if (!second.ok || !second.data || !('snippets' in second.data))
       throw new Error('missing snippets');
     expect(second.data.snippets.map((snippet) => snippet.id).sort()).toEqual(
-      first.data.snippets.map((snippet) => snippet.id).sort(),
+      [...originalIds].sort(),
     );
     expect((await seeded.handle({ type: 'clear' }, trusted)).ok).toBe(true);
     const restored = await seeded.handle({ type: 'export' }, trusted);
     if (!restored.ok || !restored.data || !('snippets' in restored.data))
       throw new Error('missing snippets');
     expect(restored.data.snippets).toHaveLength(6);
-    expect(
-      restored.data.snippets.some((snippet) =>
-        first.data.snippets.some((original) => original.id === snippet.id),
-      ),
-    ).toBe(false);
+    expect(restored.data.snippets.some((snippet) => originalIds.includes(snippet.id))).toBe(false);
   });
   it('lets Gmail dismiss onboarding without replacing other settings', async () => {
     await platform.setSettings({ ...DEFAULT_SETTINGS, theme: 'dark' });

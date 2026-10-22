@@ -6,6 +6,7 @@ export interface CloudConfig extends RecoveryKit {
   etag?: string;
   enabled: boolean;
   dirty: boolean;
+  dirtySince?: number;
   lastSuccess?: number;
   error?: string;
   conflict?: boolean;
@@ -51,12 +52,14 @@ async function validCloud(value: unknown): Promise<boolean> {
       'etag',
       'enabled',
       'dirty',
+      'dirtySince',
       'lastSuccess',
       'error',
       'conflict',
     ]) ||
     typeof value.enabled !== 'boolean' ||
     typeof value.dirty !== 'boolean' ||
+    (value.dirtySince !== undefined && !timestamp(value.dirtySince)) ||
     (value.conflict !== undefined && typeof value.conflict !== 'boolean') ||
     (value.error !== undefined && (typeof value.error !== 'string' || value.error.length > 1000)) ||
     (value.lastSuccess !== undefined && !timestamp(value.lastSuccess)) ||

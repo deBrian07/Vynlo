@@ -237,6 +237,91 @@ describe('backup service with real encryption, persistent journal and Worker pro
       expect(stored.text).not.toContain(sensitive);
     expect((await f.store.read()).cloud?.provision).toBeUndefined();
   });
+  it('blocks backup changes while a confirmed restore is incomplete and resumes explicitly', async () => {
+    const f = fixture();
+    const kit = await f.enable();
+    const file = await encryptLocal(document(), password);
+    const summary = value<PreviewSummary>(
+      await f.call({ type: 'backup-preview-file', file, password }),
+    );
+    vi.mocked(f.platform.restoreAddons).mockRejectedValueOnce(new Error('addon unavailable'));
+    expect(await f.call({ type: 'backup-restore', ticket: summary.ticket })).toMatchObject({
+      ok: false,
+    });
+    f.server.fetcher.mockClear();
+    for (const message of [
+      { type: 'backup-enable', savedRecovery: true },
+      { type: 'backup-prepare-cloud', endpoint, provision },
+      { type: 'backup-preview-file', file, password },
+      { type: 'backup-preview-cloud', kit },
+      { type: 'backup-now' },
+    ])
+      expect(await f.call(message)).toMatchObject({ ok: false });
+    await expect(f.service.process()).rejects.toThrow('pending restore');
+    expect(f.server.fetcher).not.toHaveBeenCalled();
+    expect(value<ProtectionStatus>(await f.call({ type: 'backup-status' })).recoveryPending).toBe(
+      true,
+    );
+    const resumed = value<ProtectionStatus>(await f.call({ type: 'backup-resume-restore' }));
+    expect(resumed).toMatchObject({ recoveryPending: false, automatic: false });
+    expect((await f.store.read()).pendingRestore).toBeUndefined();
+    expect(f.platform.restoreWorkspace).toHaveBeenCalledTimes(2);
+    expect(f.addons()).toEqual(document().addons);
+  });
+  it('anchors the daily backup deadline to the last upload across worker restarts', async () => {
+    const f = fixture();
+    await f.enable();
+    const restarted = fixture(f.server, f.dbName);
+    restarted.advance(6 * 60 * 60_000);
+    f.server.fetcher.mockClear();
+    await restarted.service.initialize();
+    expect(restarted.platform.setAlarm).toHaveBeenLastCalledWith(time + 24 * 60 * 60_000);
+    expect(f.server.fetcher).not.toHaveBeenCalled();
+    restarted.advance(19 * 60 * 60_000);
+    await restarted.service.initialize();
+    expect(restarted.platform.setAlarm).toHaveBeenLastCalledWith(time + 25 * 60 * 60_000 + 60_000);
+    expect(f.server.fetcher).not.toHaveBeenCalled();
+    await restarted.service.process();
+    expect(
+      value<ProtectionStatus>(await restarted.call({ type: 'backup-status' })).lastSuccess,
+    ).toBe(time + 25 * 60 * 60_000);
+  });
+  it('preserves dirty state when the server cannot confirm an upload revision', async () => {
+    const f = fixture();
+    await f.enable();
+    await f.service.changed();
+    f.server.fetcher.mockResolvedValueOnce(
+      new Response(JSON.stringify({ etag: '*' }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    expect(await f.call({ type: 'backup-now' })).toMatchObject({ ok: false });
+    expect((await f.store.read()).cloud).toMatchObject({
+      dirty: true,
+      enabled: true,
+      etag: '"revision-1"',
+    });
+    expect(f.platform.setAlarm).toHaveBeenLastCalledWith(time + 15 * 60_000);
+    f.server.fetcher.mockResolvedValueOnce(new Response('not JSON'));
+    expect(await f.call({ type: 'backup-now' })).toMatchObject({ ok: false });
+    expect((await f.store.read()).cloud?.dirty).toBe(true);
+  });
+  it('rejects unauthenticated cloud response schemas before creating a restore preview', async () => {
+    const f = fixture();
+    const kit = await f.enable();
+    f.server.fetcher.mockResolvedValueOnce(
+      new Response(JSON.stringify({ plaintext: document() }), {
+        headers: { ETag: '"revision-1"' },
+      }),
+    );
+    expect(await f.call({ type: 'backup-preview-cloud', kit })).toMatchObject({ ok: false });
+    expect((await f.store.read()).preview).toBeUndefined();
+    f.server.fetcher.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'unavailable' }), { status: 503 }),
+    );
+    expect(await f.call({ type: 'backup-preview-cloud', kit })).toMatchObject({ ok: false });
+    expect(f.platform.restoreWorkspace).not.toHaveBeenCalled();
+  });
   it('recovers from a fresh extension store using the saved recovery file', async () => {
     const original = fixture();
     const kit = await original.enable();

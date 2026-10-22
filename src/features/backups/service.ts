@@ -161,7 +161,7 @@ export function createBackupService(
         retry
           ? now() + 15 * 60_000
           : state.cloud.dirty
-            ? now() + 60_000
+            ? Math.max(now() + 1000, (state.cloud.dirtySince ?? now()) + 60_000)
             : Math.max(now() + 60_000, (state.cloud.lastSuccess ?? now()) + 24 * 60 * 60_000),
       );
   }
@@ -199,6 +199,7 @@ export function createBackupService(
       c.etag = data.etag;
       c.lastSuccess = now();
       c.dirty = false;
+      delete c.dirtySince;
       delete c.error;
       delete c.provision;
       await store.write(state);
@@ -235,10 +236,12 @@ export function createBackupService(
     // Core imports are transactional and merge existing IDs. Addon replay is idempotent.
     await platform.restoreWorkspace(pending.document.workspace);
     await platform.restoreAddons(pending.document.addons);
-    if (pending.cloud) state.cloud = { ...pending.cloud, enabled: false, dirty: true };
+    if (pending.cloud)
+      state.cloud = { ...pending.cloud, enabled: false, dirty: true, dirtySince: now() };
     else if (state.cloud) {
       state.cloud.enabled = false;
       state.cloud.dirty = true;
+      state.cloud.dirtySince = now();
     }
     delete state.pendingRestore;
     delete state.preview;
@@ -342,6 +345,7 @@ export function createBackupService(
             provision: m.provision,
             enabled: false,
             dirty: true,
+            dirtySince: now(),
           };
           await store.write(state);
           data = { format: 'vynlo-recovery-kit', version: 1, endpoint, secret, vaultId };
@@ -454,6 +458,8 @@ export function createBackupService(
       serial(async () => {
         const state = await store.read();
         if (state.cloud) {
+          if (!state.cloud.dirty || state.cloud.dirtySince === undefined)
+            state.cloud.dirtySince = now();
           state.cloud.dirty = true;
           await store.write(state);
           await schedule(state);

@@ -41,7 +41,7 @@ Persisted records are authoritative; Chrome alarm state is disposable. The worke
 
 The notification-attempt timestamp is persisted before notifying Chrome. This prevents restart loops from creating duplicate attempts, but a crash between those two steps can lose a desktop alert. The due dashboard record survives. Notification failures are not retried automatically; snoozing creates a new scheduled attempt. Resolving or untracking a conversation clears its pending work.
 
-Times are absolute epoch milliseconds. Calendar-day presets retain local wall-clock time across daylight-saving transitions; the three-hour preset is a fixed duration. Changing time zones changes display, not the previously scheduled instant. Chrome and OS scheduling can delay delivery.
+Times are absolute epoch milliseconds. Calendar-day presets retain local wall-clock time across daylight-saving transitions. Later today is 6:00pm local when that is at least an hour away, and 9:00am the next morning otherwise. Changing time zones changes display, not the previously scheduled instant. Chrome and OS scheduling can delay delivery.
 
 ## Extending the product
 

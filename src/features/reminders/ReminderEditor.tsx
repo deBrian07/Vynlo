@@ -51,7 +51,7 @@ export function ReminderEditor({
       <div className="presets">
         {(
           [
-            ['later', 'In 3 hours'],
+            ['later', 'Later today'],
             ['tomorrow', 'Tomorrow'],
             ['three-days', 'In three days'],
             ['week', 'Next week'],

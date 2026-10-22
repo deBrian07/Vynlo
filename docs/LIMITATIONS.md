@@ -15,7 +15,7 @@ Fixtures cover expected and failed states. They do not establish live Gmail comp
 - Desktop notifications depend on Chrome and operating-system settings. The dashboard is the durable reminder surface.
 - An attempted notification is marked before dispatch. A crash at that boundary can suppress an alert, and notification failures are not automatically retried. Snoozing schedules another attempt.
 - There is one reminder per tracked conversation. Changing the date replaces the current schedule.
-- Scheduled instants remain fixed when the device time zone changes. Calendar-day presets are calculated in the local time zone when selected.
+- Scheduled instants remain fixed when the device time zone changes. Calendar-day presets, including Later today, are calculated in the local time zone when selected. Later today means 6:00pm if that is at least an hour away, otherwise 9:00am the next morning.
 
 ## Drafts and shortcuts
 

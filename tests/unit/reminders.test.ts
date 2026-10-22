@@ -4,7 +4,17 @@ import { isOverdue, reminderDate, snoozeDueAt } from '../../src/services/reminde
 describe('reminder dates', () => {
   const now = new Date(2026, 9, 21, 10).getTime();
   it('calculates presets in local calendar time', () => {
-    expect(reminderDate('later', now)).toBe(now + 10800000);
+    const later = new Date(reminderDate('later', now));
+    expect(later.getFullYear()).toBe(2026);
+    expect(later.getMonth()).toBe(9);
+    expect(later.getDate()).toBe(21);
+    expect(later.getHours()).toBe(18);
+    expect(later.getMinutes()).toBe(0);
+    const evening = new Date(2026, 9, 21, 17, 30).getTime();
+    const nextMorning = new Date(reminderDate('later', evening));
+    expect(nextMorning.getDate()).toBe(22);
+    expect(nextMorning.getHours()).toBe(9);
+    expect(nextMorning.getMinutes()).toBe(0);
     expect(new Date(reminderDate('tomorrow', now)).getDate()).toBe(22);
     expect(new Date(reminderDate('three-days', now)).getDate()).toBe(24);
     expect(new Date(reminderDate('week', now)).getDate()).toBe(28);

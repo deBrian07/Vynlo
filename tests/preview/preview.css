@@ -1,14 +1,13 @@
 .preview-tools {
   margin: 24px 22px 0;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
+  padding-top: 12px;
 }
 .preview-appearance {
   display: flex;
   gap: 3px;
   padding: 3px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: 0;
   border-radius: 8px;
 }
 .preview-appearance button {
@@ -24,8 +23,8 @@
   color: var(--muted);
 }
 .preview-appearance button[aria-pressed='true'] {
-  background: var(--bg);
-  border-color: var(--line);
+  background: var(--surface-hover);
+  border-color: transparent;
   color: var(--text);
 }
 .preview-tools .preview-command {
@@ -33,7 +32,7 @@
   align-items: center;
   gap: 7px;
   width: 100%;
-  margin-top: 12px;
+  margin-top: 6px;
   padding: 7px 0;
   border: 0;
   background: transparent;

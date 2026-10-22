@@ -398,7 +398,7 @@ details p {
 .full-page .workspace-header {
   grid-column: 1;
   grid-row: 1;
-  padding: 28px 22px 18px;
+  padding: 24px 22px 14px;
 }
 .full-page .workspace-header .header-actions {
   display: none;
@@ -414,6 +414,26 @@ details p {
   max-width: 176px;
   text-overflow: ellipsis;
   min-height: 30px;
+  padding-left: 0;
+  border-color: transparent;
+  background: transparent;
+}
+.full-page .account-bar select:hover {
+  background: var(--surface-hover);
+}
+.full-page .logo-mark {
+  width: 28px;
+  height: 28px;
+}
+.full-page .brand-name {
+  width: 74px;
+  height: 30px;
+}
+.full-page .beta {
+  border: 0;
+  padding: 0;
+  font-size: 8px;
+  letter-spacing: 1px;
 }
 .full-page .account-dot {
   flex-shrink: 0;
@@ -426,27 +446,26 @@ details p {
 }
 .full-page .workspace-nav {
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   padding: 0 14px;
   border-bottom: 0;
 }
 .full-page .workspace-nav button {
-  padding: 10px 12px;
+  padding: 9px 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 13px;
   gap: 10px;
   text-align: left;
 }
 .full-page .workspace-nav button[aria-current='page'] {
   background: var(--accent-soft);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 .full-page .workspace-body {
   grid-column: 2;
   grid-row: 1 / 5;
   border-left: 1px solid var(--line);
-  padding: 38px clamp(24px, 4vw, 52px);
+  padding: 32px clamp(24px, 4vw, 44px);
   overflow: visible;
   min-width: 0;
 }

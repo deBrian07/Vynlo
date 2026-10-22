@@ -91,6 +91,19 @@ test.afterEach(async () => {
   if (profile) rmSync(profile, { recursive: true, force: true });
 });
 
+test('shows tracking beside the toolbar and includes starter snippets', async () => {
+  await expect(
+    page.getByRole('button', { name: 'Track this conversation', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Open Vynlo', exact: true }).click();
+  await page.getByRole('button', { name: 'Snippets', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Internship follow-up' })).toBeVisible();
+  await page.getByRole('button', { name: 'Got it', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'Open Vynlo', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Got it', exact: true })).toHaveCount(0);
+});
+
 test('tracks a conversation through the UI and persists across Gmail reload', async () => {
   await track();
   await page.reload();

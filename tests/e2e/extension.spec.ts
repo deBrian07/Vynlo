@@ -349,7 +349,7 @@ test('renders representative fixture views in light, dark and narrow layouts', a
         accountId: 'person@example.com',
         threadId: record.threadId,
         title: record.title,
-        url: `https://mail.google.com/mail/u/0/#all/${record.threadId}`,
+        url: `https://mail.google.com/mail/?authuser=${encodeURIComponent('person@example.com')}#all/${record.threadId}`,
       },
       status: record.status,
       note: record.note,

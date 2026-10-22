@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gmail integration fixture — synthetic data</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f6f8fc;
+        color: #202124;
+        font:
+          14px Arial,
+          sans-serif;
+      }
+      header {
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+      }
+      header a {
+        color: #444746;
+        font-size: 12px;
+      }
+      .mail-brand {
+        font-size: 25px;
+        letter-spacing: -0.5px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 16px;
+        padding: 8px 24px;
+      }
+      nav {
+        display: grid;
+        align-content: start;
+        gap: 12px;
+        padding: 18px;
+        color: #444746;
+      }
+      nav a {
+        color: inherit;
+        text-decoration: none;
+        padding: 8px 12px;
+      }
+      main {
+        background: white;
+        border-radius: 20px;
+        min-height: 780px;
+        padding: 28px;
+      }
+      h2 {
+        font-size: 24px;
+        font-weight: 500;
+      }
+      [role='toolbar'] {
+        height: 40px;
+        border-bottom: 1px solid #e8eaed;
+        color: #5f6368;
+      }
+      .message {
+        margin: 32px 0;
+        border-bottom: 1px solid #e8eaed;
+        padding-bottom: 36px;
+        line-height: 1.8;
+      }
+      .editor {
+        width: 80%;
+        margin-top: 24px;
+        padding: 20px;
+        min-height: 150px;
+        border: 1px solid #dadce0;
+        border-radius: 10px;
+        white-space: pre-wrap;
+      }
+      .fixture-label {
+        color: #5f6368;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <header role="banner">
+      <span class="mail-brand">Gmail fixture</span
+      ><a
+        aria-label="Google Account: Example (__ACCOUNT__)"
+        href="https://accounts.google.com/SignOutOptions"
+        >__ACCOUNT__</a
+      >
+    </header>
+    <div class="layout">
+      <nav aria-label="Mail folders">
+        <a href="#inbox">Inbox</a><a href="#starred">Starred</a><a href="#sent">Sent</a
+        ><a href="#drafts">Drafts</a>
+        <p class="fixture-label">Synthetic fixture.<br />No real messages.</p>
+      </nav>
+      <main role="main" style="background-color: rgb(255, 255, 255)">
+        <div gh="mtb" role="toolbar" aria-label="Conversation toolbar">
+          Archive · Report spam · Delete
+        </div>
+        <h2
+          data-thread-perm-id="thread-f:1780000000000000000"
+          data-legacy-thread-id="18b123456789abcd"
+        >
+          Project check-in
+        </h2>
+        <div class="message">
+          <strong>Alex Example</strong>
+          <p>This is an invented conversation used to verify Vynlo's Gmail integration.</p>
+        </div>
+        <div
+          class="editor"
+          role="textbox"
+          aria-label="Message body"
+          contenteditable="true"
+          g_editable="true"
+          tabindex="0"
+        >
+          Existing draft.
+        </div>
+        <button type="button" id="fixture-send">Send (fixture)</button>
+      </main>
+    </div>
+  </body>
+</html>

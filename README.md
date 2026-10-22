@@ -25,12 +25,12 @@ pnpm build
 ```
 
 1. Open `chrome://extensions` and enable **Developer mode**.
-2. Select **Load unpacked**, then choose `.output/chrome-mv3` in this repository.
+2. Select **Load unpacked**, then choose `release/Vynlo` in this repository.
 3. Reload Gmail and open Vynlo from its Gmail control.
 
 Open a supported conversation and choose a status to start tracking. Use **Cmd+K** on macOS or **Ctrl+K** on Windows/Linux to open commands. Read the [usage guide](docs/USAGE.md) for reminders, snippets, shortcuts and data export.
 
-After rebuilding, reload the extension and Gmail. Export your data before uninstalling or changing installation paths.
+Building updates both `release/Vynlo` and `.output/chrome-mv3`. If Vynlo is already installed, keep its existing folder, click **Reload** on its card at `chrome://extensions`, then reload Gmail. Export your data before uninstalling or changing installation paths.
 
 ## Development
 

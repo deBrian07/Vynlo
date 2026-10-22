@@ -363,6 +363,21 @@ describe('backup service with real encryption, persistent journal and Worker pro
     });
     expect(a.platform.clearAlarm).toHaveBeenCalled();
   });
+  it('cancels restore replay before clearing without losing recovery credentials', async () => {
+    const f = fixture();
+    const kit = await f.enable();
+    const state = await f.store.read();
+    state.pendingRestore = { id: 'pending', document: document(), expiresAt: time + 60_000 };
+    state.preview = state.pendingRestore;
+    await f.store.write(state);
+    await f.service.prepareClear();
+    const retained = await f.store.read();
+    expect(retained.cloud).toMatchObject({ enabled: false, secret: kit.secret });
+    expect(retained.pendingRestore).toBeUndefined();
+    expect(retained.preview).toBeUndefined();
+    await f.service.initialize();
+    expect(f.platform.restoreWorkspace).not.toHaveBeenCalled();
+  });
   it('pauses and clears without any further uploads', async () => {
     const f = fixture();
     await f.enable();

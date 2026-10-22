@@ -467,6 +467,17 @@ export function createBackupService(
         }
       }),
     process: () => serial(() => upload()),
+    prepareClear: () =>
+      serial(async () => {
+        const state = await store.read();
+        if (state.cloud) state.cloud.enabled = false;
+        // An explicit clear cancels pending imports before core deletion. A later
+        // backup-state write failure must never replay old data into a cleared workspace.
+        delete state.pendingRestore;
+        delete state.preview;
+        await store.write(state);
+        await platform.clearAlarm();
+      }),
     beforeClear: () =>
       serial(async () => {
         await store.write({ version: 1 });

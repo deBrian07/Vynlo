@@ -1,6 +1,6 @@
 import { BrandMark } from './Brand';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Command, BookmarkPlus } from 'lucide-react';
+import { Command, PanelsTopLeft } from 'lucide-react';
 import type { GmailAdapter } from '../gmail/adapter';
 import { getSnapshot, request } from '../services/client';
 import { conversationId } from '../services/validation';
@@ -275,6 +275,8 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
             onClick={() => show()}
           >
             <BrandMark className="mini-mark" />
+            <span>Vynlo</span>
+            <PanelsTopLeft size={16} />
           </button>
           {context.conversation && (
             <button
@@ -286,7 +288,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
               aria-label="Track conversation"
               title="Track conversation"
             >
-              <BookmarkPlus size={14} />
+              Track conversation
             </button>
           )}
           <button
@@ -296,7 +298,7 @@ export function ContentApp({ adapter }: { adapter: GmailAdapter }) {
             onPointerDown={() => adapter.captureComposer()}
             onClick={() => setPalette(true)}
           >
-            <Command size={14} />
+            <Command size={16} />
           </button>
         </div>
       )}

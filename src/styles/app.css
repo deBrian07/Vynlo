@@ -282,17 +282,17 @@ details p {
 }
 .gmail-launcher {
   position: fixed;
-  bottom: 16px;
-  right: 20px;
+  bottom: 22px;
+  right: 28px;
   z-index: 2147483000;
   display: flex;
   align-items: center;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 9px;
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--brand-navy) 10%, transparent);
-  padding: 3px;
-  gap: 1px;
+  border-radius: 12px;
+  box-shadow: 0 5px 24px #0002;
+  padding: 4px;
+  gap: 3px;
 }
 .connection-error {
   max-width: min(420px, calc(100vw - 32px));
@@ -307,12 +307,9 @@ details p {
 .gmail-launcher .launcher-button {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 4px;
+  gap: 9px;
+  font-weight: 600;
   border: 0;
-  border-radius: 6px;
 }
 .mini-mark,
 .logo-mark {
@@ -332,20 +329,19 @@ details p {
   color: #fff;
 }
 .gmail-launcher .mini-mark {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+}
+.gmail-launcher .launcher-button {
+  white-space: nowrap;
+}
+/* Do not render the large lockup in the small Gmail control, including stale mounts. */
+.gmail-launcher .brand-name {
+  display: none;
 }
 .gmail-launcher .launcher-command,
 .gmail-launcher .launcher-track {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 6px;
   border: 0;
-  border-radius: 6px;
-  color: var(--muted);
 }
 .launcher-command {
   display: flex;

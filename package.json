@@ -13,6 +13,7 @@
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
+    "backups:setup": "node scripts/backups-setup.mjs",
     "postinstall": "wxt prepare",
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",

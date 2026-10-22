@@ -298,7 +298,10 @@ test('schedules and dismisses a reminder using the visible conversation controls
   await editor.getByLabel('Tracking status').selectOption('follow-up');
   await editor.getByLabel('Set a reminder after saving').check();
   await editor.getByRole('button', { name: 'Save & set reminder', exact: true }).click();
-  await page.getByRole('button', { name: 'Tomorrow', exact: true }).click();
+  const reminder = page.getByRole('dialog', { name: 'Set a reminder', exact: true });
+  await expect(reminder).toBeVisible();
+  // The accessible name also includes the localized preset date.
+  await reminder.getByRole('button', { name: /^Tomorrow\b/ }).click();
   await dashboard();
   await expect(page.locator('.due-chip')).toBeVisible();
   await page.locator('.due-chip').click();

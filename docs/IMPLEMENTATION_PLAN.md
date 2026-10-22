@@ -47,3 +47,5 @@ The review adds source-correlated opaque thread routes, safer native snippet ins
 5. Synthetic decision fixtures/evaluation runner, failure/account-switch tests, build checks and documentation distinguishing mock inference from actual model evaluation.
 
 Acceptance: local tags persist without forcing follow-up tracking; records remain account-scoped; model failures cannot break Gmail/core actions; manual corrections survive automatic visits; all imported tags are validated and imports never silently enable inference.
+
+Classification implementation status (2026-10-22): tasks 1–5 implemented, including default-off settings, manual review, account-indexed database migration, backup compatibility and a 120-subject evaluation runner. `pnpm check` passed 179 tests and the production build; the ZIP was inspected. Actual model quality, browser fixtures and authenticated Gmail remain explicit release gates, not completed milestones. See [executed validation](CLASSIFICATION_VALIDATION.md). Publishing the branch was attempted but GitHub DNS is unavailable in this environment.

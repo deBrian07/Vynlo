@@ -22,15 +22,20 @@ export function ReminderEditor({
   onClose: () => void;
   onDismiss?: () => Promise<void>;
 }) {
-  const initial = localInput(existing?.dueAt ?? Date.now() + defaultHours * 3600000);
+  const [initial] = useState(() =>
+    localInput(existing?.dueAt ?? Date.now() + defaultHours * 3600000),
+  );
   const [value, setValue] = useState(initial);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const close = () => {
+    if (busy) return;
     if (value !== initial && !window.confirm('Discard unsaved reminder changes?')) return;
     onClose();
   };
   const save = async (at: number) => {
+    if (busy) return;
+    setError('');
     if (!Number.isFinite(at) || at <= Date.now()) {
       setError('Choose a date and time in the future.');
       return;
@@ -59,23 +64,41 @@ export function ReminderEditor({
         ).map(([preset, label]) => (
           <button key={preset} disabled={busy} onClick={() => void save(reminderDate(preset))}>
             {label}
+            <small className="preset-description">
+              {new Date(reminderDate(preset)).toLocaleString(undefined, {
+                weekday: 'short',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </small>
           </button>
         ))}
       </div>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void save(new Date(value).getTime());
+          const at = new Date(value).getTime();
+          // Date normalizes nonexistent local times during the spring DST transition.
+          // Refuse that silent shift so a custom reminder keeps the user's chosen time.
+          if (!Number.isFinite(at) || localInput(at) !== value) {
+            setError('This local time is unavailable. Choose another date and time.');
+            return;
+          }
+          void save(at);
         }}
       >
         <label className="field reminder-custom">
           <span>Custom date and time</span>
           <input
+            disabled={busy}
             type="datetime-local"
             aria-label="Custom date and time"
             required
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setError('');
+            }}
           />
           <small>
             Uses your current time zone: {Intl.DateTimeFormat().resolvedOptions().timeZone}.

@@ -30,6 +30,7 @@ export function ConversationEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const close = () => {
+    if (busy) return;
     if (
       (status !== (existing?.status ?? 'waiting') || note !== (existing?.note ?? '')) &&
       !window.confirm('Discard unsaved conversation changes?')
@@ -43,10 +44,12 @@ export function ConversationEditor({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (busy) return;
+          setError('');
           setBusy(true);
           void onSave({ type: 'track', ref: refValue, status, note })
             .then(() => {
-              if (schedule && status !== 'resolved') onReminder();
+              if (schedule && (status === 'waiting' || status === 'follow-up')) onReminder();
               else onClose();
             })
             .catch((e) =>
@@ -59,6 +62,8 @@ export function ConversationEditor({
           <label className="field">
             <span>Tracking status</span>
             <select
+              disabled={busy}
+              aria-describedby="tracking-status-help"
               aria-label="Tracking status"
               value={status}
               onChange={(e) => setStatus(e.target.value as Status)}
@@ -69,10 +74,21 @@ export function ConversationEditor({
                 </option>
               ))}
             </select>
+            <small id="tracking-status-help">
+              {
+                {
+                  'needs-reply': 'Your next move. Keep conversations you need to answer here.',
+                  waiting: 'Their next move. Keep track while you wait for a response.',
+                  'follow-up': 'Keep this conversation on your radar for a future check-in.',
+                  resolved: 'All done for now. You can reopen this conversation anytime.',
+                }[status]
+              }
+            </small>
           </label>
           <label className="field">
             <span>Conversation note</span>
             <textarea
+              disabled={busy}
               aria-label="Conversation note"
               value={note}
               maxLength={10000}
@@ -85,6 +101,7 @@ export function ConversationEditor({
             <label className="setting-row">
               <span>Set a reminder after saving</span>
               <input
+                disabled={busy}
                 type="checkbox"
                 checked={schedule}
                 onChange={(e) => setSchedule(e.target.checked)}
@@ -110,7 +127,13 @@ export function ConversationEditor({
             Cancel
           </button>
           <button className="primary" disabled={busy}>
-            {busy ? 'Saving…' : 'Save conversation'}
+            {busy
+              ? 'Saving…'
+              : schedule && (status === 'waiting' || status === 'follow-up')
+                ? 'Save & set reminder'
+                : existing
+                  ? 'Save changes'
+                  : 'Track conversation'}
           </button>
         </footer>
       </form>

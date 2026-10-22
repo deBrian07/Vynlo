@@ -7,6 +7,7 @@
 - [x] Preserve the complete supplied corrected kit under `assets/brand`.
 - [x] Replace Chrome icons with supplied exact-size navy/mint exports.
 - [x] Adapt inline local vector mark and outlined wordmark in workspace, popup and Gmail launcher, with light/dark and accessible labels.
+- [x] Extend navy/mint/teal tokens across light/dark controls, navigation, semantic states and palette; validate contrast.
 - [x] Shorten README, use supplied theme-aware banners with truthful illustration labeling, move detailed instructions to `docs/USAGE.md`.
 - [x] Validate formatting, lint, types, 103 tests, build, preview build, ZIP and asset/reference checks. Installed-extension visuals/live Gmail remain release gates.
 - [x] Prepare independent branch history and package. Publication requires reachable GitHub; current terminal DNS is blocked.

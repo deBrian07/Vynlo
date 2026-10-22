@@ -81,8 +81,10 @@ async function connection(): Promise<Tracking['connection']> {
 }
 /** Never creates the tracking database on a build that has never used tracking. */
 export async function readTrackingAddon(): Promise<Addons> {
+  const config = await connection();
   const databases = await indexedDB.databases();
-  if (!databases.some((database) => database.name === DATABASE)) return undefined;
+  if (!databases.some((database) => database.name === DATABASE))
+    return config ? { openTracking: { records: [], connection: config } } : undefined;
   const db = await open(false);
   try {
     const records = await new Promise<RecoveryTrackingRecord[]>((resolve, reject) => {
@@ -91,7 +93,6 @@ export async function readTrackingAddon(): Promise<Addons> {
       tx.oncomplete = () => resolve(request.result as RecoveryTrackingRecord[]);
       tx.onabort = tx.onerror = () => reject(new Error('Tracking history could not be read.'));
     });
-    const config = await connection();
     const addons: Addons = { openTracking: { records, ...(config ? { connection: config } : {}) } };
     assertAddon(addons);
     return structuredClone(addons);

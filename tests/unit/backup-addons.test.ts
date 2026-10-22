@@ -58,11 +58,18 @@ function create(version = 1, records: unknown[] = []): Promise<void> {
   });
 }
 describe('optional tracking recovery bridge', () => {
-  it('does not create a database or inspect connection secrets when tracking is absent', async () => {
+  it('does not create a database when tracking is absent', async () => {
     expect(await readTrackingAddon()).toBeUndefined();
     expect(await indexedDB.databases()).toEqual([]);
-    expect(chrome.storage.local.get).not.toHaveBeenCalled();
+    expect(chrome.storage.local.get).toHaveBeenCalledWith('trackingConnection');
     await restoreTrackingAddon(undefined);
+    expect(await indexedDB.databases()).toEqual([]);
+  });
+  it('preserves setup before the first tracked email creates a database', async () => {
+    values.trackingConnection = config;
+    expect(await readTrackingAddon()).toEqual({
+      openTracking: { records: [], connection: config },
+    });
     expect(await indexedDB.databases()).toEqual([]);
   });
   it('preserves private records and only the known connection key', async () => {

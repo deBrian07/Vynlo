@@ -1,16 +1,18 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { X, Inbox, LoaderCircle } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { X, Inbox, LoaderCircle, AlertTriangle } from 'lucide-react';
 
 export function Modal({
   title,
   children,
   onClose,
   wide = false,
+  busy = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  busy?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -33,12 +35,18 @@ export function Modal({
       aria-labelledby={id}
       onCancel={(e) => {
         e.preventDefault();
-        onClose();
+        if (!busy) onClose();
       }}
     >
       <header className="modal-header">
         <h2 id={id}>{title}</h2>
-        <button className="icon-button" aria-label="Close dialog" onClick={onClose}>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Close dialog"
+          onClick={onClose}
+          disabled={busy}
+        >
           <X size={18} />
         </button>
       </header>
@@ -71,20 +79,60 @@ export function Confirm({
   onConfirm,
   onClose,
   label = 'Delete',
+  destructive = true,
 }: {
   title: string;
   children: ReactNode;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   onClose: () => void;
   label?: string;
+  destructive?: boolean;
 }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  const executing = useRef(false);
+  const confirm = async () => {
+    if (executing.current) return;
+    executing.current = true;
+    setPending(true);
+    setError('');
+    try {
+      await onConfirm();
+    } catch {
+      setError('This action could not be completed. Your dialog is still open; please try again.');
+    } finally {
+      executing.current = false;
+      setPending(false);
+    }
+  };
   return (
-    <Modal title={title} onClose={onClose}>
-      <p className="muted">{children}</p>
+    <Modal title={title} onClose={onClose} busy={pending}>
+      <div className={`confirmation-icon ${destructive ? 'is-danger' : ''}`}>
+        <AlertTriangle size={22} aria-hidden="true" />
+      </div>
+      <p className="confirmation-copy">{children}</p>
+      {error && (
+        <p className="error-box" role="alert">
+          {error}
+        </p>
+      )}
       <footer className="form-actions">
-        <button onClick={onClose}>Cancel</button>
-        <button className="danger" onClick={onConfirm}>
-          {label}
+        <button type="button" onClick={onClose} disabled={pending}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={destructive ? 'danger-filled' : 'primary'}
+          onClick={() => void confirm()}
+          disabled={pending}
+        >
+          {pending ? (
+            <>
+              <LoaderCircle className="spin" size={14} aria-hidden="true" /> Working…
+            </>
+          ) : (
+            label
+          )}
         </button>
       </footer>
     </Modal>

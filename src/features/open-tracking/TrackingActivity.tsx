@@ -8,7 +8,13 @@ import './tracking.css';
 function date(value: number) {
   return new Date(value).toLocaleString();
 }
-export function TrackingActivity({ accountId }: { accountId?: string }) {
+export function TrackingActivity({
+  accountId,
+  onSettings,
+}: {
+  accountId?: string;
+  onSettings?: () => void;
+}) {
   const [loaded, setLoaded] = useState<{ accountId: string; snapshot: TrackingSnapshot } | null>(
     null,
   );
@@ -76,9 +82,15 @@ export function TrackingActivity({ accountId }: { accountId?: string }) {
       </header>
       <p className="tracking-disclosure">
         Send your draft through Gmail, then choose “I’ve sent this” below to activate tracking.
-        Vynlo never sends email. Image proxies and automated downloads can create or hide opens;
-        viewing your own sent email can also count. “No open detected” does not mean unread.
+        Vynlo never sends email.
       </p>
+      <details className="tracking-reliability">
+        <summary>What an open signal means</summary>
+        <p className="tracking-disclosure">
+          Image proxies and automated downloads can create or hide opens; viewing your own sent
+          email can also count. “No open detected” does not mean unread.
+        </p>
+      </details>
       {error && (
         <p role="alert" className="error-box">
           {error}
@@ -86,8 +98,14 @@ export function TrackingActivity({ accountId }: { accountId?: string }) {
       )}
       {accountId && snapshot && !snapshot.connected && (
         <p className="tracking-disclosure">
-          Disconnected. Saved history is shown below. Reconnect in Settings to refresh opens; you
-          can still delete entries to stop their images if Chrome retains access to the Worker.
+          {records.length
+            ? 'Disconnected. Saved history is shown below. Reconnect to refresh opens. You can still delete entries if Chrome retains access to the Worker.'
+            : 'Connect a tracking service to get started.'}
+          {onSettings && (
+            <button type="button" onClick={onSettings}>
+              Connect in Settings
+            </button>
+          )}
         </p>
       )}
       {!accountId ? (

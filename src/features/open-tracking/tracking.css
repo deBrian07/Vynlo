@@ -129,20 +129,34 @@
   font-size: 12px;
 }
 .tracking-activity {
-  margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
+  margin-top: 0;
 }
 .tracking-activity-header {
   justify-content: space-between;
   align-items: flex-start;
 }
 .tracking-activity-header h2 {
-  font-size: 16px;
+  font-size: 22px;
   margin: 0 0 4px;
 }
 .tracking-activity-header button {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.tracking-reliability {
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.tracking-reliability summary {
+  cursor: pointer;
+}
+.tracking-disclosure button {
+  display: block;
+  margin-top: 12px;
 }
 .tracking-activity .muted,
 .tracking-disclosure {

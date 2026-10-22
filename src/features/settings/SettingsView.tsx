@@ -397,8 +397,10 @@ export function SettingsView({
       <div className="settings-section">
         <h2>Data and privacy</h2>
         <p className="muted">
-          <ShieldCheck size={14} /> Your data stays in this browser profile. It is not encrypted by
-          Vynlo. Backups contain your notes and account addresses; keep them somewhere private.
+          <ShieldCheck size={14} /> Workspace records stay in this browser profile and are not
+          encrypted by Vynlo. Optional open tracking stores image-load events on your service.
+          Backups contain your notes and account addresses, but exclude tracking activity and keys;
+          keep them private.
         </p>
         <div className="data-actions">
           <button
@@ -436,10 +438,14 @@ export function SettingsView({
             Vynlo reads limited visible Gmail interface metadata to identify the account, active
             conversation title and draft you choose. It stores account addresses, tracked thread
             references, your notes, reminders, templates and preferences in extension-owned
-            IndexedDB and Chrome local storage. It does not store message bodies or attachments,
-            transmit your data, use analytics, request OAuth, detect replies or send email. Data is
-            scoped to this Chrome profile and is not encrypted by Vynlo. Uninstalling removes
-            extension data; export a backup first. Source privacy policy: docs/PRIVACY.md.
+            IndexedDB and Chrome local storage. It does not store message bodies or attachments, use
+            analytics, request OAuth, detect replies or send email. Optional open tracking sends
+            random IDs and capability tokens to your chosen Worker; Cloudflare receives image
+            requests and network metadata. It does not receive subjects, recipients or message
+            bodies from Vynlo. Core data is scoped to this Chrome profile and is not encrypted by
+            Vynlo. Uninstalling removes extension data; export a backup first. Delete tracking
+            entries before uninstalling to revoke remote images; otherwise they expire after 30
+            days. Source privacy policy: docs/PRIVACY.md.
           </p>
         </details>
       </div>

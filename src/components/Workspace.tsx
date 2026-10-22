@@ -406,7 +406,14 @@ export default function Workspace({
               {view === 'contacts' && (
                 <Contacts contacts={contacts} accountId={accountId} onSave={mutate} />
               )}
-              {view === 'open-tracking' && <TrackingActivity accountId={accountId} />}
+              {view === 'open-tracking' && (
+                <TrackingActivity
+                  accountId={accountId}
+                  onSettings={() =>
+                    options ? changeView('settings') : act(() => request({ type: 'options' }))
+                  }
+                />
+              )}
               {view === 'settings' && options && (
                 <SettingsView
                   snapshot={data}
@@ -422,7 +429,7 @@ export default function Workspace({
       </div>
       <footer className="workspace-footer">
         <span>
-          <ShieldCheck size={12} /> Local to this browser
+          <ShieldCheck size={12} /> Local workspace
         </span>
         <button className="footer-shortcuts" onClick={() => setShortcuts(true)}>
           <Command size={12} /> Shortcuts <kbd>?</kbd>

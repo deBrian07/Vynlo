@@ -19,11 +19,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "preview:build": "vite build --config tests/preview/vite.config.ts",
-    "preview": "vite preview --config tests/preview/vite.config.ts",
+    "preview": "vite --config tests/preview/vite.config.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "preview:static": "vite preview --config tests/preview/vite.config.ts"
   },
   "dependencies": {
     "react": "19.3.1",

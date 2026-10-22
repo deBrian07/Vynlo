@@ -103,6 +103,27 @@
   padding: 9px 11px;
   min-width: 0;
   min-height: 38px;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+.vynlo input::placeholder,
+.vynlo textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.vynlo input:not([type='checkbox']):not([type='file']),
+.vynlo select,
+.vynlo textarea,
+.search-box {
+  border-color: var(--field-border);
+}
+.vynlo input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+.vynlo ::selection {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 .vynlo textarea {
   resize: vertical;
@@ -325,7 +346,7 @@ details p {
   font-weight: 650;
 }
 .beta {
-  margin-left: 7px;
+  margin-left: 0;
   color: var(--muted);
   font-size: 9px;
   letter-spacing: 1.3px;
@@ -357,10 +378,16 @@ details p {
   max-width: 1120px;
   margin: 32px auto;
   min-height: calc(100vh - 64px);
-  box-shadow: 0 4px 30px #20243a08;
+  box-shadow: 0 8px 40px #0f172a08;
   display: grid;
-  grid-template-columns: 216px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
   grid-template-rows: auto auto 1fr auto;
+}
+.full-page .workspace-header,
+.full-page .account-bar,
+.full-page .workspace-navigation,
+.full-page .workspace-footer {
+  background: var(--sidebar);
 }
 .full-page .workspace-header {
   grid-column: 1;
@@ -378,7 +405,7 @@ details p {
 }
 .full-page .account-bar select {
   width: 100%;
-  max-width: 160px;
+  max-width: 176px;
   text-overflow: ellipsis;
   min-height: 30px;
 }
@@ -407,6 +434,7 @@ details p {
 }
 .full-page .workspace-nav button[aria-current='page'] {
   background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 .full-page .workspace-body {
   grid-column: 2;
@@ -590,7 +618,7 @@ details p {
 .search-box svg {
   flex-shrink: 0;
 }
-.search-box input {
+.vynlo .search-box input {
   width: 100%;
   border: 0;
   padding: 9px 0;
@@ -621,7 +649,6 @@ details p {
 }
 .filter-tabs span {
   margin-left: 3px;
-  opacity: 0.8;
   font-variant-numeric: tabular-nums;
 }
 .results-summary {
@@ -672,7 +699,7 @@ details p {
   padding-bottom: 12px;
 }
 .conversation-dashboard .filter-tabs button {
-  border-radius: 4px;
+  border-radius: 7px;
 }
 .conversation-group > h2 {
   font-size: 11px;
@@ -1103,6 +1130,8 @@ kbd {
   font: 11px monospace;
   border: 1px solid var(--line);
   background: var(--surface);
+  color: var(--muted);
+  box-shadow: 0 1px 0 var(--line);
   padding: 3px 6px;
   border-radius: 4px;
 }
@@ -1280,7 +1309,7 @@ kbd {
   align-items: center;
   text-align: left;
   gap: 11px;
-  padding: 12px 22px !important;
+  padding: 13px 22px !important;
   border-radius: 0 !important;
   cursor: pointer;
 }
@@ -1325,6 +1354,10 @@ kbd {
 .palette-command.is-selected {
   background: var(--accent-soft);
   color: var(--text);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.palette-command.is-selected .palette-command-icon {
+  color: var(--accent);
 }
 .palette-command-meta {
   color: var(--muted);

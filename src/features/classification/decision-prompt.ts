@@ -22,7 +22,6 @@ export function buildDecisionMessages(
     options: context
       ? context.categories.map((c, i) => ({
           label: String.fromCharCode(65 + i),
-          key: i < 8 ? c.id : `custom_${i - 7}`,
           description: `${c.name}: ${c.description}`,
         }))
       : CATEGORY_IDS.map((category, i) => ({

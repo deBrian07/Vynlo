@@ -139,7 +139,10 @@ describe('browser decision engine (mocked GPU/runtime, not a model-quality bench
       expect(result.probabilities[custom]).toBeGreaterThan(0.99);
       expect(Object.keys(result.probabilities)).toHaveLength(9);
       const task = JSON.parse(f.tokenizer.apply_chat_template.mock.calls[0]![0][1].content);
-      expect(task.options[8]).toMatchObject({ label: 'I', key: 'custom_1' });
+      expect(task.options[8]).toMatchObject({
+        label: 'I',
+        description: 'Robotics: Robot team messages',
+      });
       expect(f.forward).toHaveBeenCalledTimes(1);
     } finally {
       await f.engine.release();

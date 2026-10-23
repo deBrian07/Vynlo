@@ -337,22 +337,19 @@ export function createBrowserEngine(
           const withExample = [...promptContext.categories]
             .reverse()
             .find((c) => c.examples.length);
-          const verbose = promptContext.categories.some((c) => c.description.length > 60);
-          if (verbose) {
+          const longestDescription = Math.max(
+            ...promptContext.categories.map((c) => c.description.length),
+          );
+          if (longestDescription > 0) {
+            const limit = longestDescription > 60 ? 60 : longestDescription > 16 ? 16 : 0;
             promptContext = {
               categories: promptContext.categories.map((c) => ({
                 ...c,
-                description: c.description.slice(0, 60),
+                description: c.description.slice(0, limit),
               })),
             };
-          } else if (withExample) withExample.examples.pop();
-          else if (promptContext.categories.some((c) => c.description.length)) {
-            promptContext = {
-              categories: promptContext.categories.map((c) => ({
-                ...c,
-                description: c.description.slice(0, Math.floor(c.description.length / 2)),
-              })),
-            };
+          } else if (withExample) {
+            withExample.examples.pop();
           } else {
             throw new Error(
               'This subject exceeds the local AI token budget. Choose a tag manually.',

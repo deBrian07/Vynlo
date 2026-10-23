@@ -12,18 +12,24 @@ const worker = new Worker(
 );
 const port = chrome.runtime.connect({ name: 'vynlo-browser-inference-v1' });
 let idle: ReturnType<typeof setTimeout> | undefined;
+let heartbeat: ReturnType<typeof setInterval> | undefined;
 const active = new Set<string>();
 const stop = () => {
   if (idle) clearTimeout(idle);
+  clearInterval(heartbeat);
+  heartbeat = undefined;
   worker.terminate();
 };
 const armIdle = () => {
   if (idle) clearTimeout(idle);
-  if (!active.size)
+  if (!active.size) {
+    clearInterval(heartbeat);
+    heartbeat = undefined;
     idle = setTimeout(() => {
       worker.terminate();
       port.postMessage({ type: 'idle' });
     }, IDLE_TIMEOUT_MS);
+  }
 };
 port.onMessage.addListener((message: unknown) => {
   if (!message || typeof message !== 'object') return;
@@ -44,6 +50,9 @@ port.onMessage.addListener((message: unknown) => {
   }
   if (idle) clearTimeout(idle);
   active.add(command.id);
+  // Offscreen messages reset the MV3 service worker's idle timer. Only active jobs
+  // need a heartbeat; model compilation may otherwise remain silent for >30 seconds.
+  heartbeat ??= setInterval(() => port.postMessage({ type: 'heartbeat' }), 10_000);
   worker.postMessage(command);
 });
 worker.addEventListener('message', (event: MessageEvent<unknown>) => {

@@ -1,7 +1,7 @@
 import type { Prediction } from '../model';
 import { MODEL } from '../model';
 import { parsePrediction } from '../inference';
-import { createModelAssets } from './assets';
+import { createModelAssets, MODEL_DOWNLOAD_BYTES } from './assets';
 import {
   DOWNLOAD_TIMEOUT_MS,
   IDLE_TIMEOUT_MS,
@@ -15,23 +15,51 @@ import {
 const PORT = 'vynlo-browser-inference-v1';
 const OFFSCREEN = 'inference.html';
 const unavailable = 'Local GPU inference is unavailable. Open Vynlo settings to check this device.';
+const stopped = 'Local AI stopped. Your tags were kept.';
+const busy = 'Local AI is busy. Wait for the current operation or release the GPU.';
+const connectionTimeout = 5_000;
 interface Pending {
   resolve(value: unknown): void;
   reject(error: Error): void;
-  timer: ReturnType<typeof setTimeout>;
+  timer?: ReturnType<typeof setTimeout>;
   operation: BrowserOperation;
+  phase?: BrowserRuntimeStatus['state'];
 }
-const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object';
-/** One hidden extension document, one worker, shared by every Gmail tab. No email in storage. */
+const object = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === 'object' && !Array.isArray(v);
+const errorMessage = (error: unknown) =>
+  error instanceof Error && error.message.length <= 500 ? error.message : unavailable;
+
+/** One extension document and GPU worker, shared by Gmail tabs. No subjects in persistent state. */
 export function createBrowserInferenceBridge() {
   let port: chrome.runtime.Port | undefined;
   let creating: Promise<void> | undefined;
   let stopping: Promise<void> | undefined;
+  let removing: Promise<void> | undefined;
   let lastStatus: BrowserRuntimeStatus | undefined;
-  const pending = new Map<string, Pending>();
-  let active = false;
   let generation = 0;
+  let accepting: number | undefined;
+  let handshake: { resolve(): void; reject(): void } | undefined;
+  let work: symbol | undefined;
+  const pending = new Map<string, Pending>();
   const assets = createModelAssets();
+  const emptyStatus = (): BrowserRuntimeStatus => ({
+    state: 'not-downloaded',
+    modelCached: false,
+    downloadedBytes: 0,
+    totalBytes: MODEL_DOWNLOAD_BYTES,
+  });
+  const cacheStatus = async (): Promise<BrowserRuntimeStatus> => {
+    try {
+      return await assets.status();
+    } catch {
+      return {
+        ...emptyStatus(),
+        state: 'error',
+        message: 'Model storage is unavailable. Check your browser storage settings.',
+      };
+    }
+  };
   const rejectAll = (message: string) => {
     for (const request of pending.values()) {
       clearTimeout(request.timer);
@@ -39,10 +67,16 @@ export function createBrowserInferenceBridge() {
     }
     pending.clear();
   };
-  const shutdown = async (message = 'Local AI stopped. Your tags were kept.') => {
+  const shutdown = async (message?: string) => {
     generation++;
-    lastStatus = undefined;
-    rejectAll(message);
+    accepting = undefined;
+    handshake?.reject();
+    handshake = undefined;
+    work = undefined;
+    lastStatus = message
+      ? { ...(lastStatus ?? emptyStatus()), state: 'error', message }
+      : undefined;
+    rejectAll(message ?? stopped);
     const prior = port;
     port = undefined;
     prior?.disconnect();
@@ -58,45 +92,54 @@ export function createBrowserInferenceBridge() {
     });
     await stopping;
   };
+  const deadline = (id: string, request: Pending, duration: number) => {
+    clearTimeout(request.timer);
+    request.timer = setTimeout(() => {
+      if (pending.get(id) !== request) return;
+      void shutdown(
+        request.operation === 'prepare'
+          ? 'Model preparation timed out. Cancelled downloads do not enable AI.'
+          : 'Local AI took too long. The GPU session was released.',
+      ).catch(() => undefined);
+    }, duration);
+  };
   chrome.runtime.onConnect.addListener((candidate) => {
+    if (candidate.name !== PORT) return;
     if (
-      candidate.name !== PORT ||
       candidate.sender?.id !== chrome.runtime.id ||
       candidate.sender?.url !== chrome.runtime.getURL(OFFSCREEN) ||
-      candidate.sender?.tab
-    )
-      return;
-    if (port) {
+      candidate.sender?.tab ||
+      accepting !== generation ||
+      stopping ||
+      port
+    ) {
       candidate.disconnect();
       return;
     }
     port = candidate;
+    handshake?.resolve();
     candidate.onDisconnect.addListener(() => {
-      if (port === candidate) {
-        port = undefined;
-        lastStatus = undefined;
-        rejectAll(unavailable);
-      }
+      if (port !== candidate) return;
+      port = undefined;
+      lastStatus = { ...(lastStatus ?? emptyStatus()), state: 'error', message: unavailable };
+      rejectAll(unavailable);
     });
     candidate.onMessage.addListener((message: unknown) => {
-      if (!object(message)) return;
+      // A terminated document may still have a queued event. It must not touch a new session.
+      if (port !== candidate || !object(message)) return;
       if (message.type === 'idle' && !pending.size) {
         void shutdown().catch(() => undefined);
         return;
       }
       if (message.type === 'progress' && validBrowserStatus(message.status)) {
         lastStatus = message.status;
-        if (message.status.state === 'ready') {
-          for (const [id, request] of pending)
-            if (request.operation === 'infer') {
-              clearTimeout(request.timer);
-              request.timer = setTimeout(() => {
-                void shutdown(
-                  'Local classification took too long. The GPU session was released; choose a tag manually or try again.',
-                ).catch(() => undefined);
-              }, INFERENCE_TIMEOUT_MS);
-              pending.set(id, request);
-            }
+        for (const [id, request] of pending) {
+          if (request.phase === message.status.state) continue;
+          request.phase = message.status.state;
+          if (request.operation === 'prepare' && message.status.state === 'loading')
+            deadline(id, request, LOAD_TIMEOUT_MS);
+          if (request.operation === 'infer' && message.status.state === 'ready')
+            deadline(id, request, INFERENCE_TIMEOUT_MS);
         }
         return;
       }
@@ -116,24 +159,49 @@ export function createBrowserInferenceBridge() {
         );
     });
   });
-  const ensureDocument = async () => {
+  const ensureDocument = async (version: number) => {
     if (stopping) await stopping;
+    if (version !== generation) throw new Error(stopped);
     if (port) return;
     creating ??= (async () => {
       const contexts = await chrome.runtime.getContexts({
         contextTypes: ['OFFSCREEN_DOCUMENT'],
         documentUrls: [chrome.runtime.getURL(OFFSCREEN)],
       });
-      // An orphaned document cannot reconnect after a service-worker restart. Recreate it.
-      if (contexts.length && !port) await chrome.offscreen.closeDocument();
-      if (!port)
-        await chrome.offscreen.createDocument({
-          url: OFFSCREEN,
-          reasons: [chrome.offscreen.Reason.WORKERS],
-          justification:
-            'Run the user-enabled local email classifier in one GPU worker and release it after inactivity.',
-        });
-      if (!port) throw new Error(unavailable);
+      if (version !== generation) throw new Error(stopped);
+      if (contexts.length) await chrome.offscreen.closeDocument();
+      if (version !== generation) throw new Error(stopped);
+      accepting = version;
+      let timer: ReturnType<typeof setTimeout>;
+      const connected = new Promise<void>((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(unavailable)), connectionTimeout);
+        handshake = {
+          resolve: () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          reject: () => {
+            clearTimeout(timer);
+            reject(new Error(stopped));
+          },
+        };
+      });
+      try {
+        // Document creation and the runtime Port handshake are distinct asynchronous events.
+        await Promise.all([
+          chrome.offscreen.createDocument({
+            url: OFFSCREEN,
+            reasons: [chrome.offscreen.Reason.WORKERS],
+            justification: 'Run user-enabled local email classification in one GPU worker.',
+          }),
+          connected,
+        ]);
+        if (version !== generation || !port) throw new Error(stopped);
+      } finally {
+        clearTimeout(timer!);
+        if (accepting === version) accepting = undefined;
+        handshake = undefined;
+      }
     })().finally(() => {
       creating = undefined;
     });
@@ -141,94 +209,142 @@ export function createBrowserInferenceBridge() {
   };
   const rpc = async (operation: BrowserOperation, subject?: string) => {
     const version = generation;
-    await ensureDocument();
-    if (version !== generation || !port) throw new Error(unavailable);
+    try {
+      await ensureDocument(version);
+    } catch (error) {
+      if (version === generation) await shutdown(errorMessage(error));
+      throw error;
+    }
+    if (version !== generation || !port) throw new Error(stopped);
     const id = crypto.randomUUID();
     return new Promise<unknown>((resolve, reject) => {
-      const timeout =
+      const request: Pending = { resolve, reject, operation };
+      pending.set(id, request);
+      deadline(
+        id,
+        request,
         operation === 'prepare'
           ? DOWNLOAD_TIMEOUT_MS
           : operation === 'infer'
             ? lastStatus?.state === 'ready'
               ? INFERENCE_TIMEOUT_MS
               : LOAD_TIMEOUT_MS
-            : 15_000;
-      const timer = setTimeout(() => {
-        void shutdown(
-          operation === 'prepare'
-            ? 'Model preparation timed out. Cancelled downloads do not enable AI.'
-            : 'Local AI took too long. The GPU session was released.',
-        ).catch(() => undefined);
-      }, timeout);
-      pending.set(id, { resolve, reject, timer, operation });
+            : 15_000,
+      );
       try {
         port!.postMessage({ id, type: operation, ...(subject === undefined ? {} : { subject }) });
       } catch {
         pending.delete(id);
-        clearTimeout(timer);
+        clearTimeout(request.timer);
         reject(new Error(unavailable));
       }
     });
   };
   const getStatus = async (): Promise<BrowserRuntimeStatus> => {
-    if (!port) return assets.status();
+    if (removing) await removing;
+    if (work && lastStatus) return lastStatus;
+    if (lastStatus?.state === 'error')
+      return { ...(await cacheStatus()), state: 'error', message: lastStatus.message };
+    if (!port) {
+      return cacheStatus();
+    }
     const result = await rpc('status');
     if (!validBrowserStatus(result)) throw new Error(unavailable);
     lastStatus = result;
     return result;
   };
   const exclusive = async <T>(action: () => Promise<T>) => {
-    if (active)
-      throw new Error('Local AI is busy. Wait for the current operation or release the GPU.');
-    active = true;
+    if (work || removing) throw new Error(busy);
+    const token = Symbol();
+    work = token;
     try {
       return await action();
     } finally {
-      active = false;
+      if (work === token) work = undefined;
     }
   };
   return {
     status: getStatus,
-    prepare: () =>
-      exclusive(async () => {
-        const result = await rpc('prepare');
-        if (!validBrowserStatus(result)) throw new Error(unavailable);
-        lastStatus = result;
-        return result;
-      }),
-    check: async () => {
-      const result = await getStatus();
-      if (!['cached', 'ready'].includes(result.state))
-        throw new Error('Download the local AI model in Vynlo settings first.');
-      // The worker checks actual GPU support without downloading or allocating the model.
-      const resultFromWorker = await rpc('check');
-      if (!object(resultFromWorker) || resultFromWorker.available !== true)
-        throw new Error(unavailable);
-      return { version: 'browser-webgpu', model: MODEL } as const;
+    // Return promptly: a Chrome runtime message must not span a multi-minute model download.
+    // The settings view follows progress independently; only static file transfers continue.
+    prepare: async (): Promise<BrowserRuntimeStatus> => {
+      if (work || removing) throw new Error(busy);
+      const token = Symbol();
+      work = token;
+      const version = generation;
+      try {
+        await ensureDocument(version);
+        if (version !== generation) throw new Error(stopped);
+        const cached = await cacheStatus();
+        if (version !== generation || work !== token) throw new Error(stopped);
+        lastStatus = { ...cached, state: 'downloading', message: undefined };
+        void rpc('prepare')
+          .then((result) => {
+            if (version !== generation) return;
+            if (!validBrowserStatus(result)) throw new Error(unavailable);
+            lastStatus = result;
+          })
+          .catch(async (error: unknown) => {
+            if (version === generation) await shutdown(errorMessage(error));
+          })
+          .finally(() => {
+            if (work === token) work = undefined;
+          });
+        return lastStatus;
+      } catch (error) {
+        if (work === token) work = undefined;
+        if (version === generation) await shutdown(errorMessage(error));
+        throw error;
+      }
     },
+    check: () =>
+      exclusive(async () => {
+        const version = generation;
+        const status = await cacheStatus();
+        if (version !== generation) throw new Error(stopped);
+        if (status.state !== 'cached')
+          throw new Error('Download the local AI model in Vynlo settings first.');
+        const result = await rpc('check');
+        if (!object(result) || result.available !== true) throw new Error(unavailable);
+        lastStatus =
+          lastStatus?.state === 'ready' ? { ...lastStatus, ...status, state: 'ready' } : status;
+        return { version: 'browser-webgpu', model: MODEL } as const;
+      }),
     infer: (subject: string): Promise<Prediction> =>
       exclusive(async () => {
-        if (!subject.trim() || subject.length > 500)
+        if (typeof subject !== 'string' || !subject.trim() || subject.length > 500)
           throw new Error('Choose a tag manually for this subject.');
-        const result = await rpc('infer', subject);
-        // Reuse the same strict score validation at the worker boundary.
-        if (!object(result)) throw new Error(unavailable);
-        return parsePrediction({
-          model: MODEL,
-          answers: {
-            category: {
-              type: 'choice',
-              choice: result.category,
-              probabilities: result.probabilities,
-              confidence: result.confidence,
+        const version = generation;
+        try {
+          const result = await rpc('infer', subject);
+          if (!object(result)) throw new Error(unavailable);
+          return parsePrediction({
+            model: MODEL,
+            answers: {
+              category: {
+                type: 'choice',
+                choice: result.category,
+                probabilities: result.probabilities,
+                confidence: result.confidence,
+              },
             },
-          },
-        });
+          });
+        } catch (error) {
+          // Transformers serializes session execution globally. A rejected run can poison that
+          // chain, so recovery needs a new worker/runtime rather than another call to the model.
+          if (version === generation) await shutdown(errorMessage(error));
+          throw error;
+        }
       }),
-    release: shutdown,
-    removeModel: async () => {
-      await shutdown();
-      await assets.clear();
+    release: () => shutdown(),
+    removeModel: () => {
+      removing ??= (async () => {
+        await shutdown();
+        await assets.clear();
+      })().finally(() => {
+        removing = undefined;
+      });
+      return removing;
     },
     idleTimeoutMs: IDLE_TIMEOUT_MS,
   };

@@ -33,3 +33,11 @@ Custom category definitions and confirmed examples survive extension updates wit
 - `pnpm exec playwright test --max-failures=1`: blocked during Chromium launch (`SIGABRT`, process cleanup `EPERM`); the first test failed before UI interaction and the remaining 13 did not run. No live Gmail interaction or personalized GPU inference was verified here.
 
 Before enabling this broadly, evaluate fresh custom categories with separate teaching and held-out subjects, including overlapping categories, misleading names and instruction-like subjects. Report per-category precision/recall and review coverage. The existing fixed-category synthetic results do not establish personalized accuracy.
+
+## Pre-merge review follow-up
+
+The follow-up review fixed mixed automatic/manual request coalescing, inconsistent category-name normalization across UI/import/storage, older duplicate learning references, explicit unknown-account UI fallback, and recovery after a blocked IndexedDB upgrade. Regression tests cover these fixes.
+
+`pnpm check` now passes **316 tests across 38 files**, formatting, lint, TypeScript and a production build. The real-tokenizer check still passes all 364 contracts. Playwright test discovery includes 15 browser fixtures, including the new custom-category creation/tagging/reload/deletion flow; discovery does not execute browser interactions. The attempted browser run still crashes during Chromium startup before interaction.
+
+Remaining merge verification: run `pnpm test:e2e` in an environment where Chromium launches, and measure actual personalized Tev1 predictions on fresh held-out subjects after teaching custom categories. Until those checks pass, custom-category AI remains experimental and its accuracy is unverified.

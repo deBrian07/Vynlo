@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
 import {
   createModelAssets,
   MODEL_DOWNLOAD_BYTES,
@@ -75,6 +76,26 @@ describe('pinned browser model cache', () => {
       assets.fetch(base + 'config.json', { method: 'POST', body: 'mail content' }),
     ).rejects.toThrow('unapproved');
     expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('refuses a corrupted cached decoder before attempting normalization repair, without redownloading', async () => {
+    const f = storageFixture();
+    seedFiles(f.stored);
+    const fetcher = vi.fn();
+    const assets = createModelAssets({ cacheStorage: f.storage, fetcher });
+    await assets.download(new AbortController().signal);
+    vi.stubGlobal('crypto', webcrypto);
+    try {
+      await expect(assets.fetch(base + 'onnx/decoder_model_merged_q4f16.onnx')).rejects.toThrow(
+        'failed verification',
+      );
+      expect(fetcher).not.toHaveBeenCalled();
+      expect((await assets.status()).modelCached).toBe(false);
+      expect(f.stored.has(base + 'onnx/decoder_model_merged_q4f16.onnx')).toBe(false);
+      expect(f.stored.has(marker)).toBe(false);
+      expect(f.stored.has(base + 'onnx/decoder_model_merged_q4f16.onnx_data')).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
   it('streams exact-size files but never marks an interrupted download complete', async () => {
     const f = storageFixture();

@@ -1,4 +1,5 @@
 import { MODEL_CACHE, MODEL_REPO, MODEL_REVISION, type BrowserRuntimeStatus } from './model';
+import { DECODER_SOURCE_SHA256, repairTev1Normalization } from './onnx-normalization';
 
 /** Immutable Hugging Face revision. Sizes and LFS SHA-256 values come from its repository tree. */
 export const TEXT_ASSETS = [
@@ -212,6 +213,34 @@ export function createModelAssets(
       const asset = TEXT_ASSETS.find((item) => value === BASE + item.path)!;
       if (!response || response.headers.get(byteHeader) !== String(asset.maxBytes))
         throw new Error('A model file is missing. Download it again.');
+      if (asset.path === 'onnx/decoder_model_merged_q4f16.onnx') {
+        // Repair only this immutable, verified graph. Keep the original bytes in
+        // CacheStorage so an existing 946 MB download remains reusable. The large
+        // external weights stay streamed and are never copied or rewritten here.
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const digest = Array.from(
+          new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+          (byte) => byte.toString(16).padStart(2, '0'),
+        ).join('');
+        if (
+          asset.sha256 !== DECODER_SOURCE_SHA256 ||
+          bytes.byteLength !== asset.maxBytes ||
+          digest !== DECODER_SOURCE_SHA256
+        ) {
+          // Evict only the damaged small graph. A retry must not skip it because
+          // of its old byte-count header or force another download of the weights.
+          await cache.delete(value);
+          await cache.delete(MARKER);
+          throw new Error('The cached model graph failed verification. Download it again.');
+        }
+        const corrected = repairTev1Normalization(bytes);
+        return new Response(new Uint8Array(corrected).buffer, {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': String(corrected.byteLength),
+          },
+        });
+      }
       return response;
     },
   };

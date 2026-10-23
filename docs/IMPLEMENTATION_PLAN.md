@@ -79,3 +79,13 @@ The user's first actual GPU benchmark failed the quality gate: 12.5% straightfor
 - [x] Obtain a corrected real-model run: the user supplied 78/96 ordinary subjects correct with zero runtime errors. The release gate still failed. This environment still blocks the benchmark server and Playwright startup.
 
 The user supplied that corrected run: 78/96 ordinary subjects correct, zero runtime errors, but the release gate failed. The full exported report is analyzed in [classification experiments](CLASSIFICATION_EXPERIMENTS.md). Benchmark-only candidates test clearer category boundaries and instruction defense; the extension's production prompt and confidence thresholds remain unchanged. Real-tokenizer contracts cover all three prompts, while worker tests prevent concurrent prompt contamination. Actual candidate quality and a fresh held-out evaluation remain pending.
+
+## Personalized categories
+
+- [x] Add account-scoped custom categories with additive IndexedDB migration and validated backup import/export.
+- [x] Support create/edit/delete, manual tagging, search and filters; show confirmed example counts.
+- [x] Build bounded local references from distinct confirmed manual subjects; exclude model predictions and the current conversation.
+- [x] Extend scoring and message validation to 24 choices; keep the baseline unchanged without personalized context.
+- [x] Cancel stale inference on category/tag edits and require three distinct references before automatic custom assignment.
+- [x] Add storage, UI, dynamic inference and learning regression tests.
+- [ ] Measure real GPU accuracy for personalized categories against fresh held-out examples. No accuracy guarantee follows from the three-example threshold.

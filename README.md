@@ -15,6 +15,7 @@ Vynlo is a free, MIT-licensed Chrome extension that adds conversation tracking, 
 - Save categorized snippets, fill variables such as `{{first_name}}` and insert plain text into a supported Gmail composer. A new install includes starter templates you can edit or delete.
 - Keep contact notes and tags under each Gmail account.
 - Categorize opened conversations with manual tags or optional Tev1 0.8B suggestions running locally in Chrome. AI starts off and suggestions need review; see [setup and evaluation](docs/CLASSIFICATION.md).
+- Create your own email categories and guide local suggestions with confirmed examples; see [custom categories](docs/CUSTOM_CATEGORIES.md).
 - Choose light, dark or automatic themes; export, import or clear local data in settings.
 
 Vynlo never sends email. Waiting means you manually marked the conversation; reminders do not prove that no reply has arrived. Snippets are shared across your local Vynlo workspace; conversations, reminders, email tags and contacts are account-scoped.
@@ -57,7 +58,7 @@ For snippets, focus the intended Gmail draft, then open Vynlo's snippet picker u
 
 Shortcuts deliberately do not fire while typing in an input or composer, preserving Gmail's link-insertion command. Change bindings in settings if another extension or browser shortcut conflicts. The command palette uses arrow keys, Enter and Escape. It also opens from inside the workspace. Mark Waiting/Resolved shortcuts update the thread with a brief confirmation, without forcing the dashboard open.
 
-Backups contain all accounts, snippets, contact notes, conversations, reminders, email tags and settings. Local AI opt-in is excluded from backups. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; files are readable JSON, not encrypted archives.
+Backups contain all accounts, snippets, contact notes, conversations, reminders, email tags, custom categories and settings. Local AI opt-in is excluded from backups. Import validates schema version 1, merges missing records and keeps existing local records with the same IDs. Imported settings replace current preferences. Keep an export before importing; files are readable JSON, not encrypted archives.
 
 ## Development
 

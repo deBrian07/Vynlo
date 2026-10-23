@@ -9,7 +9,7 @@ import {
   MIN_GPU_BUFFER_BYTES,
   MODEL_REVISION,
 } from '../../src/features/classification/browser/model';
-import { CATEGORY_IDS } from '../../src/features/classification/model';
+import { CATEGORIES, CATEGORY_IDS } from '../../src/features/classification/model';
 
 function fixture() {
   const tensorDispose = vi.fn();
@@ -111,6 +111,101 @@ describe('browser decision engine (mocked GPU/runtime, not a model-quality bench
       }
     },
   );
+  it('scores a custom category with its own choice letter and keeps its stable ID', async () => {
+    const f = fixture();
+    const custom = 'custom:12345678-1234-4123-8123-123456789abc' as const;
+    const context = {
+      categories: [
+        ...CATEGORY_IDS.map((id) => ({
+          id,
+          name: CATEGORIES[id].label,
+          description: CATEGORIES[id].description,
+          examples: [],
+        })),
+        {
+          id: custom,
+          name: 'Robotics',
+          description: 'Robot team messages',
+          examples: ['Lidar calibration sync'],
+        },
+      ],
+    };
+    f.logits.data = new Float32Array(9);
+    f.logits.data[8] = 12;
+    f.logits.dims = [1, 1, 9];
+    try {
+      const result = await f.engine.infer('Lidar update', context);
+      expect(result.category).toBe(custom);
+      expect(result.probabilities[custom]).toBeGreaterThan(0.99);
+      expect(Object.keys(result.probabilities)).toHaveLength(9);
+      const task = JSON.parse(f.tokenizer.apply_chat_template.mock.calls[0]![0][1].content);
+      expect(task.options[8]).toMatchObject({ label: 'I', key: 'custom_1' });
+      expect(f.forward).toHaveBeenCalledTimes(1);
+    } finally {
+      await f.engine.release();
+    }
+  });
+  it('rejects invalid contexts before loading the model', async () => {
+    const f = fixture();
+    await expect(f.engine.infer('Test', { categories: [] })).rejects.toThrow(
+      'invalid category context',
+    );
+    expect(f.loadRuntime).not.toHaveBeenCalled();
+  });
+  it('reduces reference context to fit the token budget without dropping categories or changing the caller', async () => {
+    const f = fixture();
+    const context = {
+      categories: CATEGORY_IDS.map((id) => ({
+        id,
+        name: CATEGORIES[id].label,
+        description: CATEGORIES[id].description,
+        examples: id === 'work' ? ['Old project'] : [],
+      })),
+    };
+    f.tokenizer.apply_chat_template.mockImplementation((messages) => ({
+      input_ids: {
+        dims: [1, JSON.parse(messages[1].content).state.confirmedReferences.length ? 800 : 700],
+        data: [],
+        dispose: f.tensorDispose,
+      },
+    }));
+    try {
+      await f.engine.infer('New project', context);
+      expect(f.tokenizer.apply_chat_template.mock.calls.length).toBeGreaterThan(1);
+      expect(context.categories[0]!.examples).toEqual(['Old project']);
+      expect(f.forward).toHaveBeenCalledTimes(1);
+    } finally {
+      await f.engine.release();
+    }
+  });
+  it('preserves confirmed references by trimming verbose descriptions before examples', async () => {
+    const f = fixture();
+    const context = {
+      categories: CATEGORY_IDS.map((id) => ({
+        id,
+        name: CATEGORIES[id].label,
+        description: CATEGORIES[id].description,
+        examples: id === 'work' ? ['Project update'] : [],
+      })),
+    };
+    f.tokenizer.apply_chat_template.mockImplementation((messages) => {
+      const task = JSON.parse(messages[1].content);
+      const verbose = task.options.some((c: { description: string }) => c.description.length > 90);
+      return { input_ids: { dims: [1, verbose ? 800 : 700], data: [], dispose: f.tensorDispose } };
+    });
+    try {
+      await f.engine.infer('Project review', context);
+      const calls = f.tokenizer.apply_chat_template.mock.calls;
+      expect(calls.length).toBeGreaterThan(1);
+      const task = JSON.parse(calls.at(-1)![0][1].content);
+      expect(task.state.confirmedReferences).toEqual([
+        { subject: 'Project update', category: 'A' },
+      ]);
+      expect(task.options).toHaveLength(8);
+    } finally {
+      await f.engine.release();
+    }
+  });
   it('preserves probabilities when a constant is added to every candidate logit', async () => {
     const f = fixture();
     f.logits.data.set([3, 2, 1, 0, -1, -2, -3, -4]);

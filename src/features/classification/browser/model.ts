@@ -1,3 +1,4 @@
+import type { DecisionContext } from '../decision-context';
 export const MODEL_REPO = 'raphaelmansuy/tev1-0.8b-onnx-webgpu';
 export const MODEL_REVISION = '26a904f1d138eddc711f9f116e045bffc1924dbd';
 export const MODEL_CACHE = 'vynlo-tev1-webgpu-v1';
@@ -31,6 +32,7 @@ export interface BrowserCommand {
   id: string;
   type: BrowserOperation;
   subject?: string;
+  context?: DecisionContext;
 }
 export const isBrowserOperation = (value: unknown): value is BrowserOperation =>
   ['status', 'check', 'prepare', 'infer', 'release', 'remove-model'].includes(String(value));

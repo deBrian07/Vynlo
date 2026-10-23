@@ -26,6 +26,25 @@ describe('local classifier decision validation', () => {
     expect(parsePrediction(prediction('other', 0.99)).needsReview).toBe(true);
   });
 
+  it('accepts custom choices only when explicitly included in this account decision', () => {
+    const custom = 'custom:12345678-1234-4123-8123-123456789abc' as const;
+    const ids = [...CATEGORY_IDS, custom];
+    const value = {
+      model: MODEL,
+      answers: {
+        category: {
+          type: 'choice',
+          choice: custom,
+          probabilities: Object.fromEntries(ids.map((id) => [id, id === custom ? 0.99 : 0.01 / 8])),
+          confidence: 0.99,
+        },
+      },
+    };
+    expect(parsePrediction(value, ids).category).toBe(custom);
+    expect(() => parsePrediction(value)).toThrow('unsupported decision');
+    expect(() => parsePrediction(value, [...ids, custom])).toThrow('unsupported decision');
+  });
+
   it('marks low-margin decisions for review', () => {
     expect(parsePrediction(prediction('work', 0.4)).needsReview).toBe(true);
   });

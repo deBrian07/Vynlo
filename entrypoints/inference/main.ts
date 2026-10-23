@@ -1,3 +1,4 @@
+import { validDecisionContext } from '../../src/features/classification/decision-context';
 import {
   IDLE_TIMEOUT_MS,
   isBrowserOperation,
@@ -41,7 +42,8 @@ port.onMessage.addListener((message: unknown) => {
     (command.type === 'infer' &&
       (typeof command.subject !== 'string' ||
         !command.subject.trim() ||
-        command.subject.length > 500))
+        command.subject.length > 500 ||
+        (command.context !== undefined && !validDecisionContext(command.context))))
   )
     return;
   if (active.size >= 8 || active.has(command.id)) {

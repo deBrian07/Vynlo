@@ -7,15 +7,31 @@ function object(value: unknown): value is Record<string, unknown> {
 }
 
 /** Validate locally computed category scores before they enter the extension data layer. */
-export function parsePrediction(value: unknown): Prediction {
+export function parsePrediction(
+  value: unknown,
+  categoryIds: readonly Category[] = CATEGORY_IDS,
+): Prediction {
   const invalid = () => new Error(INVALID_DECISION);
+  if (
+    categoryIds.length < 2 ||
+    categoryIds.length > 24 ||
+    new Set(categoryIds).size !== categoryIds.length ||
+    !categoryIds.every(isCategory)
+  )
+    throw invalid();
   if (!object(value) || value.model !== MODEL || !object(value.answers)) throw invalid();
   const answer = value.answers.category;
-  if (!object(answer) || answer.type !== 'choice' || !isCategory(answer.choice)) throw invalid();
+  if (
+    !object(answer) ||
+    answer.type !== 'choice' ||
+    !isCategory(answer.choice) ||
+    !categoryIds.includes(answer.choice)
+  )
+    throw invalid();
   const scores = answer.probabilities;
   if (
     !object(scores) ||
-    Object.keys(scores).length !== CATEGORY_IDS.length ||
+    Object.keys(scores).length !== categoryIds.length ||
     typeof answer.confidence !== 'number' ||
     !Number.isFinite(answer.confidence) ||
     answer.confidence < 0 ||
@@ -24,9 +40,10 @@ export function parsePrediction(value: unknown): Prediction {
     throw invalid();
   }
   const probabilities = {} as Record<Category, number>;
-  for (const id of CATEGORY_IDS) {
+  for (const id of categoryIds) {
     const probability = scores[id];
     if (
+      !Object.hasOwn(scores, id) ||
       typeof probability !== 'number' ||
       !Number.isFinite(probability) ||
       probability < 0 ||
@@ -39,7 +56,7 @@ export function parsePrediction(value: unknown): Prediction {
   const sorted = Object.values(probabilities).sort((a, b) => b - a);
   const total = sorted.reduce((sum, probability) => sum + probability, 0);
   const top = sorted[0]!;
-  if (Math.abs(total - 1) > 0.02 || probabilities[answer.choice] < top - 1e-8) throw invalid();
+  if (Math.abs(total - 1) > 0.02 || probabilities[answer.choice]! < top - 1e-8) throw invalid();
   return {
     category: answer.choice,
     probabilities,

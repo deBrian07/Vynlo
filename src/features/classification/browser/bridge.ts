@@ -1,3 +1,8 @@
+import {
+  contextCategoryIds,
+  validDecisionContext,
+  type DecisionContext,
+} from '../decision-context';
 import type { Prediction } from '../model';
 import { MODEL } from '../model';
 import { parsePrediction } from '../inference';
@@ -207,7 +212,7 @@ export function createBrowserInferenceBridge() {
     });
     await creating;
   };
-  const rpc = async (operation: BrowserOperation, subject?: string) => {
+  const rpc = async (operation: BrowserOperation, subject?: string, context?: DecisionContext) => {
     const version = generation;
     try {
       await ensureDocument(version);
@@ -232,7 +237,12 @@ export function createBrowserInferenceBridge() {
             : 15_000,
       );
       try {
-        port!.postMessage({ id, type: operation, ...(subject === undefined ? {} : { subject }) });
+        port!.postMessage({
+          id,
+          type: operation,
+          ...(subject === undefined ? {} : { subject }),
+          ...(context === undefined ? {} : { context }),
+        });
       } catch {
         pending.delete(id);
         clearTimeout(request.timer);
@@ -310,25 +320,29 @@ export function createBrowserInferenceBridge() {
           lastStatus?.state === 'ready' ? { ...lastStatus, ...status, state: 'ready' } : status;
         return { version: 'browser-webgpu', model: MODEL } as const;
       }),
-    infer: (subject: string): Promise<Prediction> =>
+    infer: (subject: string, context?: DecisionContext): Promise<Prediction> =>
       exclusive(async () => {
         if (typeof subject !== 'string' || !subject.trim() || subject.length > 500)
           throw new Error('Choose a tag manually for this subject.');
+        if (context !== undefined && !validDecisionContext(context)) throw new Error(unavailable);
         const version = generation;
         try {
-          const result = await rpc('infer', subject);
+          const result = await rpc('infer', subject, context);
           if (!object(result)) throw new Error(unavailable);
-          return parsePrediction({
-            model: MODEL,
-            answers: {
-              category: {
-                type: 'choice',
-                choice: result.category,
-                probabilities: result.probabilities,
-                confidence: result.confidence,
+          return parsePrediction(
+            {
+              model: MODEL,
+              answers: {
+                category: {
+                  type: 'choice',
+                  choice: result.category,
+                  probabilities: result.probabilities,
+                  confidence: result.confidence,
+                },
               },
             },
-          });
+            contextCategoryIds(context),
+          );
         } catch (error) {
           // Transformers serializes session execution globally. A rejected run can poison that
           // chain, so recovery needs a new worker/runtime rather than another call to the model.

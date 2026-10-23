@@ -1,3 +1,4 @@
+import { CATEGORIES, CATEGORY_IDS } from '../../src/features/classification/model';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { createBrowserInferenceBridge } from '../../src/features/classification/browser/bridge';
 import {
@@ -263,3 +264,47 @@ it.each(['prepare', 'check'] as const)(
     expect(post.mock.calls.some(([value]) => value.type === operation)).toBe(false);
   },
 );
+
+it('transports bounded custom categories and validates replies against their exact IDs', async () => {
+  const custom = 'custom:12345678-1234-4123-8123-123456789abc' as const;
+  const context = {
+    categories: [
+      ...CATEGORY_IDS.map((id) => ({
+        id,
+        name: CATEGORIES[id].label,
+        description: CATEGORIES[id].description,
+        examples: [],
+      })),
+      { id: custom, name: 'Robotics', description: 'Robot team', examples: ['Lidar sync'] },
+    ],
+  };
+  const bridge = createBrowserInferenceBridge();
+  const base = post.getMockImplementation() as (request: { id: string; type: string }) => void;
+  post.mockImplementation((request: { id: string; type: string }) => {
+    base(request);
+    if (request.type === 'infer')
+      queueMicrotask(() =>
+        workerMessage({
+          id: request.id,
+          ok: true,
+          data: {
+            category: custom,
+            probabilities: Object.fromEntries(
+              context.categories.map((c) => [c.id, c.id === custom ? 0.99 : 0.01 / 8]),
+            ),
+            confidence: 0.99,
+          },
+        }),
+      );
+  });
+  try {
+    expect((await bridge.infer('Lidar review', context)).category).toBe(custom);
+    expect(post).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'infer', subject: 'Lidar review', context }),
+    );
+    await expect(bridge.infer('Invalid', { categories: [] })).rejects.toThrow('unavailable');
+    expect(post.mock.calls.filter(([v]) => v.type === 'infer')).toHaveLength(1);
+  } finally {
+    await bridge.release();
+  }
+});

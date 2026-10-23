@@ -1,3 +1,8 @@
+import {
+  contextCategoryIds,
+  validDecisionContext,
+  type DecisionContext,
+} from '../decision-context';
 import { CATEGORY_IDS, type Prediction } from '../model';
 import { buildDecisionMessages, type DecisionMessages } from '../decision-prompt';
 import { createModelAssets, MODEL_DOWNLOAD_BYTES, modelAssetUrl } from './assets';
@@ -274,7 +279,10 @@ export function createBrowserEngine(
         if (model) startIdle();
       }
     },
-    async infer(subject: string): Promise<Prediction> {
+    async infer(subject: string, context?: DecisionContext): Promise<Prediction> {
+      if (context !== undefined && !validDecisionContext(context))
+        throw new Error('Local AI received invalid category context.');
+      const categoryIds = contextCategoryIds(context);
       if (busy || loading) throw new Error('Local AI is busy. Try again in a moment.');
       if (typeof subject !== 'string' || !subject.trim() || subject.length > 500)
         throw new Error('This subject is unavailable or too long to classify.');
@@ -290,18 +298,69 @@ export function createBrowserEngine(
         // forward deadline even if a concurrent status/check saw an idle cache.
         emit({ ...current, state: 'ready' });
         const started = performance.now();
-        inputs = tokenizer!.apply_chat_template(
-          (options.buildMessages ?? buildDecisionMessages)(subject),
-          {
-            chat_template: chatTemplate,
-            add_generation_prompt: true,
-            return_dict: true,
-            enable_thinking: false,
-          },
-        );
-        const count = inputs.input_ids?.dims.at(-1);
-        if (!count || count > MAX_INPUT_TOKENS)
-          throw new Error('This subject exceeds the local AI token budget. Choose a tag manually.');
+        // Resolve additional letters only when requested; baseline scoring remains A-H.
+        while (letters.length < categoryIds.length) {
+          const ids = tokenizer!.encode(String.fromCharCode(65 + letters.length), {
+            add_special_tokens: false,
+          });
+          if (
+            ids.length !== 1 ||
+            !Number.isInteger(ids[0]) ||
+            ids[0]! < 0 ||
+            letters.includes(ids[0]!)
+          )
+            throw new Error('Local AI cannot safely score these category choices.');
+          letters.push(ids[0]!);
+        }
+        const choices = letters.slice(0, categoryIds.length);
+        // Shorten verbose descriptions before sacrificing confirmed learning examples.
+        // Category identity and the current subject are never removed.
+        let promptContext = context ? structuredClone(context) : undefined;
+        for (;;) {
+          inputs = tokenizer!.apply_chat_template(
+            promptContext
+              ? buildDecisionMessages(subject, promptContext)
+              : (options.buildMessages ?? buildDecisionMessages)(subject),
+            {
+              chat_template: chatTemplate,
+              add_generation_prompt: true,
+              return_dict: true,
+              enable_thinking: false,
+            },
+          );
+          const count = inputs.input_ids?.dims.at(-1);
+          if (count && count <= MAX_INPUT_TOKENS) break;
+          if (!promptContext)
+            throw new Error(
+              'This subject exceeds the local AI token budget. Choose a tag manually.',
+            );
+          const withExample = [...promptContext.categories]
+            .reverse()
+            .find((c) => c.examples.length);
+          const verbose = promptContext.categories.some((c) => c.description.length > 60);
+          if (verbose) {
+            promptContext = {
+              categories: promptContext.categories.map((c) => ({
+                ...c,
+                description: c.description.slice(0, 60),
+              })),
+            };
+          } else if (withExample) withExample.examples.pop();
+          else if (promptContext.categories.some((c) => c.description.length)) {
+            promptContext = {
+              categories: promptContext.categories.map((c) => ({
+                ...c,
+                description: c.description.slice(0, Math.floor(c.description.length / 2)),
+              })),
+            };
+          } else {
+            throw new Error(
+              'This subject exceeds the local AI token budget. Choose a tag manually.',
+            );
+          }
+          await disposeTensors(inputs);
+          inputs = undefined;
+        }
         inputs.num_logits_to_keep = new runtime!.Tensor('int64', [1n], []);
         outputs = await model!(inputs);
         const rawLogits = outputs.logits as Tensor | undefined;
@@ -314,10 +373,10 @@ export function createBrowserEngine(
           !logits ||
           !vocabSize ||
           logits.data.length !== vocabSize ||
-          letters.some((id) => id >= vocabSize)
+          choices.some((id) => id >= vocabSize)
         )
           throw new Error('Local AI returned an unsupported score shape.');
-        const scores = letters.map((id) => Number(logits.data[id]));
+        const scores = choices.map((id) => Number(logits.data[id]));
         if (!scores.every(Number.isFinite)) throw new Error('Local AI returned invalid scores.');
         const maximum = Math.max(...scores);
         const weights = scores.map((value) => Math.exp(value - maximum));
@@ -329,7 +388,7 @@ export function createBrowserEngine(
           1 +
           values.reduce((sum, value) => sum + (value > 0 ? value * Math.log(value) : 0), 0) /
             Math.log(values.length);
-        const category = CATEGORY_IDS[best]!;
+        const category = categoryIds[best]!;
         emit({
           ...current,
           state: 'ready',
@@ -339,7 +398,7 @@ export function createBrowserEngine(
         return {
           category,
           probabilities: Object.fromEntries(
-            CATEGORY_IDS.map((key, i) => [key, values[i]]),
+            categoryIds.map((key, i) => [key, values[i]]),
           ) as Prediction['probabilities'],
           confidence: Math.max(0, Math.min(1, confidence)),
           needsReview: category === 'other' || ranked[0]! < 0.85 || ranked[0]! - ranked[1]! < 0.25,

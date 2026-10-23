@@ -1,3 +1,4 @@
+import { validDecisionContext } from '../decision-context';
 import { createBrowserEngine } from './engine';
 
 const engine = createBrowserEngine({
@@ -26,7 +27,18 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
       case 'infer':
         if (!('subject' in request) || typeof request.subject !== 'string')
           throw new Error('A subject is required.');
-        return engine.infer(request.subject);
+        if (
+          'context' in request &&
+          request.context !== undefined &&
+          !validDecisionContext(request.context)
+        )
+          throw new Error('Local AI received invalid category context.');
+        return engine.infer(
+          request.subject,
+          'context' in request && validDecisionContext(request.context)
+            ? request.context
+            : undefined,
+        );
       case 'release':
         await engine.release();
         return null;

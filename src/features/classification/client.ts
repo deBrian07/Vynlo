@@ -1,3 +1,4 @@
+import { validBrowserStatus } from './browser/model';
 import type { ConversationRef } from '../../types/model';
 import { validEmailTag } from '../../services/validation';
 import type { ClassificationRequest } from './service';
@@ -46,6 +47,10 @@ const suggestionFor =
     v === null || tagFor(ref)(v);
 const empty = (v: unknown): v is null => v === null;
 export const classificationClient = {
+  browserStatus: () => request({ type: 'classify-browser-status' }, validBrowserStatus),
+  prepare: () => request({ type: 'classify-prepare' }, validBrowserStatus),
+  release: () => request({ type: 'classify-release' }, empty),
+  removeModel: () => request({ type: 'classify-remove-model' }, empty),
   status: () => request({ type: 'classify-status' }, status),
   configure: (preferences: ClassificationPreferences) =>
     request({ type: 'classify-configure', preferences }, status),

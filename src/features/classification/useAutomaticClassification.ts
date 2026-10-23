@@ -1,3 +1,4 @@
+import { BROWSER_PREFERENCES_KEY } from './browser/model';
 import { useEffect } from 'react';
 import type { ConversationRef } from '../../types/model';
 import { classificationClient } from './client';
@@ -21,7 +22,7 @@ export function useAutomaticClassification(ref: ConversationRef | null, enabled:
       }
     };
     const changed = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes.classificationPreferences) run();
+      if (area === 'local' && changes[BROWSER_PREFERENCES_KEY]) run();
     };
     run();
     chrome.storage.onChanged.addListener(changed);

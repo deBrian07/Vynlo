@@ -2,7 +2,7 @@ import type { ConversationRef } from '../../types/model';
 import { senderKind, type MessageSender } from '../../services/background';
 import { VynloDatabase } from '../../services/storage/database';
 import { conversationId, isAccountId, validConversationRef } from '../../services/validation';
-import { checkConnection, classifySubject } from './inference';
+import { validBrowserStatus, type BrowserRuntimeStatus } from './browser/model';
 import {
   DEFAULT_CLASSIFICATION,
   MODEL,
@@ -16,14 +16,22 @@ import {
 } from './model';
 
 export type ClassificationRequest =
-  | { type: 'classify-status' }
+  | {
+      type:
+        | 'classify-status'
+        | 'classify-browser-status'
+        | 'classify-prepare'
+        | 'classify-release'
+        | 'classify-remove-model';
+    }
   | { type: 'classify-configure'; preferences: ClassificationPreferences }
   | { type: 'classify-check' }
   | { type: 'classify-suggest' | 'classify-automatic'; ref: ConversationRef }
   | { type: 'classify-set'; ref: ConversationRef; category: Category }
   | { type: 'classify-remove'; ref: ConversationRef }
   | { type: 'classify-open'; accountId: string; id: string };
-export type ClassificationData = ClassifierStatus | ConnectionCheck | TaggedConversation | null;
+export type ClassificationData =
+  ClassifierStatus | ConnectionCheck | TaggedConversation | BrowserRuntimeStatus | null;
 export type ClassificationResponse =
   { ok: true; data: ClassificationData } | { ok: false; error: string };
 export interface ClassificationPlatform {
@@ -36,6 +44,10 @@ export interface ClassificationPlatform {
   openTab(url: string): Promise<void>;
   infer?(subject: string): Promise<Prediction>;
   check?(): Promise<ConnectionCheck>;
+  browserStatus?(): Promise<BrowserRuntimeStatus>;
+  prepare?(): Promise<BrowserRuntimeStatus>;
+  release?(): Promise<void>;
+  removeModel?(): Promise<void>;
 }
 const object = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -48,6 +60,10 @@ function validRequest(v: unknown): v is ClassificationRequest {
   if (!object(v)) return false;
   switch (v.type) {
     case 'classify-status':
+    case 'classify-browser-status':
+    case 'classify-prepare':
+    case 'classify-release':
+    case 'classify-remove-model':
     case 'classify-check':
       return true;
     case 'classify-configure':
@@ -72,7 +88,7 @@ function validRequest(v: unknown): v is ClassificationRequest {
 const cancelled =
   'Classification changed while this request was running. Your current tags were kept.';
 const setupError =
-  'Check local Ollama 0.35.0 or later and install tev1:0.8b, then try again. You can always choose a tag manually.';
+  'Prepare the browser AI model in Vynlo settings and check GPU support. You can always choose a tag manually.';
 
 /** The worker owns tags. Inference never holds a database transaction open. */
 export function createClassificationService({
@@ -111,9 +127,10 @@ export function createClassificationService({
   });
   const check = async () => {
     if (!(await platform.hasPermission()))
-      throw new Error('Allow access to local Ollama in Vynlo settings first.');
+      throw new Error('Allow model download access in Vynlo settings first.');
     try {
-      return await (platform.check ?? checkConnection)();
+      if (!platform.check) throw new Error(setupError);
+      return await platform.check();
     } catch {
       throw new Error(setupError);
     }
@@ -149,7 +166,8 @@ export function createClassificationService({
       const before = (await database.read(ref.accountId)).emailTags.find((tag) => tag.id === key);
       if (automatic && before) return before;
       if (startedEpoch !== epoch || revision !== (edits.get(key) ?? 0)) return null;
-      const prediction = await (platform.infer ?? classifySubject)(ref.title);
+      if (!platform.infer) throw new Error(setupError);
+      const prediction = await platform.infer(ref.title);
       if (
         !isCategory(prediction.category) ||
         !Number.isFinite(prediction.confidence) ||
@@ -208,7 +226,14 @@ export function createClassificationService({
       return { ok: false, error: 'This classification request could not be verified.' };
     if (
       kind !== 'extension' &&
-      (message.type === 'classify-configure' || message.type === 'classify-check')
+      [
+        'classify-configure',
+        'classify-check',
+        'classify-browser-status',
+        'classify-prepare',
+        'classify-release',
+        'classify-remove-model',
+      ].includes(message.type)
     )
       return { ok: false, error: 'Open Vynlo settings to change local classification.' };
     try {
@@ -217,11 +242,34 @@ export function createClassificationService({
           return { ok: true, data: await status() };
         case 'classify-check':
           return { ok: true, data: await check() };
+        case 'classify-browser-status': {
+          if (!platform.browserStatus) throw new Error(setupError);
+          const result = await platform.browserStatus();
+          if (!validBrowserStatus(result)) throw new Error(setupError);
+          return { ok: true, data: result };
+        }
+        case 'classify-prepare': {
+          if (!(await platform.hasPermission()) || !platform.prepare) throw new Error(setupError);
+          const result = await platform.prepare();
+          if (!validBrowserStatus(result)) throw new Error(setupError);
+          return { ok: true, data: result };
+        }
+        case 'classify-release':
+          invalidate();
+          await platform.release?.();
+          return { ok: true, data: null };
+        case 'classify-remove-model':
+          invalidate();
+          await platform.setPreferences({ ...DEFAULT_CLASSIFICATION });
+          await platform.removeModel?.();
+          await platform.publishRevision();
+          return { ok: true, data: null };
         case 'classify-configure': {
           // Pausing invalidates model work immediately, before any asynchronous storage operation.
           invalidate();
           const revision = configurationRevision;
           if (message.preferences.enabled) await check();
+          else await platform.release?.();
           if (revision !== configurationRevision) throw new Error(cancelled);
           await platform.setPreferences({ ...message.preferences });
           // A concurrent pause must also win if a storage write was already in progress.
@@ -295,7 +343,7 @@ export function createClassificationService({
       const allowed = [
         setupError,
         cancelled,
-        'Allow access to local Ollama in Vynlo settings first.',
+        'Allow model download access in Vynlo settings first.',
         'Enable local suggestions in Vynlo settings first.',
         'This conversation has too little subject context. Choose a tag manually.',
         'A local suggestion is already running. Try again when it finishes.',
@@ -306,7 +354,7 @@ export function createClassificationService({
         error:
           error instanceof Error && allowed.includes(error.message)
             ? error.message
-            : 'Local classification failed. Check Ollama or choose a tag manually.',
+            : 'Local GPU classification failed. Check the model and device in Vynlo settings, or choose a tag manually.',
       };
     }
   }

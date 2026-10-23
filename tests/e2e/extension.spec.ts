@@ -386,10 +386,11 @@ test('renders representative fixture views in light, dark and narrow layouts', a
   await page.screenshot({ path: resolve('artifacts/fixture-palette.png'), fullPage: true });
 });
 
-test('manual email tags persist without AI and remain isolated across Gmail accounts', async () => {
-  const localRequests: string[] = [];
+test('manual email tags persist without AI, download nothing and remain account isolated', async () => {
+  const modelRequests: string[] = [];
   context.on('request', (request) => {
-    if (request.url().startsWith('http://127.0.0.1:11434')) localRequests.push(request.url());
+    if (/https:\/\/[^/]*(?:huggingface\.co|hf\.co)\//.test(request.url()))
+      modelRequests.push(request.url());
   });
   await dashboard();
   await page
@@ -420,5 +421,5 @@ test('manual email tags persist without AI and remain isolated across Gmail acco
   expect(
     (await request({ type: 'snapshot', accountId: 'person@example.com' })).emailTags,
   ).toHaveLength(1);
-  expect(localRequests).toEqual([]);
+  expect(modelRequests).toEqual([]);
 });

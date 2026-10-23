@@ -49,7 +49,10 @@ it('responds once per opened conversation, not every storage revision, and clean
   expect(classificationClient.automatic).toHaveBeenCalledTimes(1);
   act(() =>
     listeners.forEach((fn) =>
-      fn({ classificationPreferences: { newValue: { enabled: true, automatic: true } } }, 'local'),
+      fn(
+        { browserClassificationPreferences: { newValue: { enabled: true, automatic: true } } },
+        'local',
+      ),
     ),
   );
   expect(classificationClient.automatic).toHaveBeenCalledTimes(2);

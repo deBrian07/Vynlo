@@ -1,3 +1,8 @@
+import { createBrowserInferenceBridge } from '../src/features/classification/browser/bridge';
+import {
+  BROWSER_PREFERENCES_KEY,
+  MODEL_ORIGINS,
+} from '../src/features/classification/browser/model';
 import { defineBackground } from 'wxt/utils/define-background';
 import { createBackgroundHandler, REMINDER_ALARM, senderKind } from '../src/services/background';
 import { createClassificationService } from '../src/features/classification/service';
@@ -8,6 +13,7 @@ import { starterSnippets } from '../src/features/snippets/starters';
 
 export default defineBackground(() => {
   const database = new VynloDatabase();
+  const browserInference = createBrowserInferenceBridge();
   const publishRevision = async () => {
     await chrome.storage.local.set({ revision: crypto.randomUUID() });
   };
@@ -16,11 +22,17 @@ export default defineBackground(() => {
     platform: {
       extensionId: chrome.runtime.id,
       getPreferences: async () =>
-        (await chrome.storage.local.get('classificationPreferences')).classificationPreferences,
+        (await chrome.storage.local.get(BROWSER_PREFERENCES_KEY))[BROWSER_PREFERENCES_KEY],
       setPreferences: async (classificationPreferences) => {
-        await chrome.storage.local.set({ classificationPreferences });
+        await chrome.storage.local.set({ [BROWSER_PREFERENCES_KEY]: classificationPreferences });
       },
-      hasPermission: () => chrome.permissions.contains({ origins: ['http://127.0.0.1/*'] }),
+      hasPermission: () => chrome.permissions.contains({ origins: MODEL_ORIGINS }),
+      infer: browserInference.infer,
+      check: browserInference.check,
+      browserStatus: browserInference.status,
+      prepare: browserInference.prepare,
+      release: browserInference.release,
+      removeModel: browserInference.removeModel,
       isEnhancementEnabled: async () => {
         const { settings } = await chrome.storage.local.get('settings');
         return settings === undefined || (validSettings(settings) && settings.enabled);
@@ -86,8 +98,10 @@ export default defineBackground(() => {
           (message.type === 'settings' && !message.settings.enabled))
       ) {
         classifier.invalidate();
+        await browserInference.release();
         if (message.type === 'clear') {
-          await chrome.storage.local.set({ classificationPreferences: DEFAULT_CLASSIFICATION });
+          await chrome.storage.local.set({ [BROWSER_PREFERENCES_KEY]: DEFAULT_CLASSIFICATION });
+          await browserInference.removeModel();
         }
       }
       return service.handle(message, sender);
@@ -99,6 +113,7 @@ export default defineBackground(() => {
   });
   chrome.permissions.onRemoved.addListener(() => {
     classifier.invalidate();
+    void browserInference.release().catch(() => undefined);
   });
   const recover = () => {
     void service.reconcile().catch(() => undefined);

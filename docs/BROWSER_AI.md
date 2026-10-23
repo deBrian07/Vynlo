@@ -95,6 +95,8 @@ Run `pnpm test:classifier:browser` and open `http://127.0.0.1:4174` in a support
 
 ## Release requirements
 
+The corrected user-provided GPU run reached 81.25% ordinary-subject accuracy and still failed the quality gate. The benchmark's **Prompt to evaluate** selector now compares the production baseline with two experimental prompts. These do not alter extension settings. See [experiment evidence and instructions](CLASSIFICATION_EXPERIMENTS.md); export each run and retain a fresh holdout before promoting a prompt.
+
 Before calling this production ready:
 
 1. Prepare the actual runtime, build the extension, and verify the ZIP includes the reviewed files.

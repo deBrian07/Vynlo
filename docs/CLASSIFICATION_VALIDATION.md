@@ -49,6 +49,10 @@ Arithmetic results are saved in ignored `artifacts/browser-ai-normalization/repo
 
 To rerun the user's benchmark, restart the local server with `pnpm test:classifier:browser`, reload `http://127.0.0.1:4174` and confirm the page says `qwen-zero-centered-rmsnorm-v1`. Check GPU, then choose **Run 120 synthetic fixtures**. Existing cached weights are reused. Keep both reports; do not treat an arithmetic regression as an improved classification score.
 
+## Corrected run and prompt experiments
+
+The subsequent complete report supplied by the user confirms the normalization correction is running on an Apple WebGPU adapter. Ordinary accuracy improved to 78/96 (81.25%) with zero runtime errors, but the quality gate still failed. All 18 ordinary errors required review; the two confident mistakes were injected classifier instructions. See [prompt experiments](CLASSIFICATION_EXPERIMENTS.md) for report provenance, failure analysis and benchmark-only comparisons. These new prompts have not been promoted to production or assigned an unmeasured accuracy score.
+
 ## Earlier implementation checks
 
 Before the WebGPU implementation, the local tag storage and UI passed 179 tests and a WXT build. Those historical checks do not validate the current packaged inference runtime.

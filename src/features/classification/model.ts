@@ -32,11 +32,25 @@ export const CATEGORIES = {
     description: 'Unclear, insufficient context, mixed topics or none of the other categories.',
   },
 } as const;
-export type Category = keyof typeof CATEGORIES;
-export const CATEGORY_IDS = Object.keys(CATEGORIES) as Category[];
+export type BuiltinCategory = keyof typeof CATEGORIES;
+export type CustomCategoryId = `custom:${string}`;
+export type Category = BuiltinCategory | CustomCategoryId;
+export const CATEGORY_IDS = Object.keys(CATEGORIES) as BuiltinCategory[];
+export const MAX_CUSTOM_CATEGORIES = 16;
+export const isCustomCategoryId = (value: unknown): value is CustomCategoryId =>
+  typeof value === 'string' &&
+  /^custom:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
+export interface UserCategory {
+  id: CustomCategoryId;
+  accountId: string;
+  name: string;
+  description: string;
+  createdAt: number;
+  updatedAt: number;
+}
 export const MODEL = 'tev1:0.8b';
 export const isCategory = (value: unknown): value is Category =>
-  typeof value === 'string' && Object.hasOwn(CATEGORIES, value);
+  typeof value === 'string' && (Object.hasOwn(CATEGORIES, value) || isCustomCategoryId(value));
 export interface Prediction {
   category: Category;
   probabilities: Record<Category, number>;

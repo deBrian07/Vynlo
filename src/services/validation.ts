@@ -1,4 +1,13 @@
-import { isCategory, MODEL, type TaggedConversation } from '../features/classification/model';
+import {
+  CATEGORIES,
+  CATEGORY_IDS,
+  isCategory,
+  isCustomCategoryId,
+  MAX_CUSTOM_CATEGORIES,
+  MODEL,
+  type TaggedConversation,
+  type UserCategory,
+} from '../features/classification/model';
 import { STATUSES, type Backup, type Settings } from '../types/model';
 import type { Request } from '../types/messages';
 
@@ -135,6 +144,19 @@ export function validRequest(v: unknown): v is Request {
       return false;
   }
 }
+export function validUserCategory(v: unknown): v is UserCategory {
+  return (
+    object(v) &&
+    isCustomCategoryId(v.id) &&
+    isAccountId(v.accountId) &&
+    text(v.name, 50) &&
+    v.name.trim() === v.name &&
+    v.name.length > 0 &&
+    text(v.description, 160) &&
+    v.description.trim() === v.description &&
+    times(v)
+  );
+}
 export function validEmailTag(v: unknown): v is TaggedConversation {
   return (
     object(v) &&
@@ -189,6 +211,39 @@ export function validBackup(v: unknown): v is Backup {
       v.emailTags.length > 20000 ||
       !v.emailTags.every((tag) => validEmailTag(tag) && accountIds.has(tag.accountId)) ||
       new Set(v.emailTags.map((tag: TaggedConversation) => tag.id)).size !== v.emailTags.length)
+  )
+    return false;
+  if (v.categories !== undefined && (!Array.isArray(v.categories) || v.categories.length > 20000))
+    return false;
+  const categories = (v.categories ?? []) as unknown[];
+  const categoryIds = new Set<string>();
+  const categoryNames = new Set<string>();
+  const categoryCounts = new Map<string, number>();
+  const builtinNames = new Set(CATEGORY_IDS.map((key) => CATEGORIES[key].label.toLowerCase()));
+  const categoryAccounts = new Map<string, string>();
+  for (const category of categories) {
+    if (!validUserCategory(category) || !accountIds.has(category.accountId)) return false;
+    const name = category.name.toLowerCase();
+    const scopedName = `${category.accountId}:${name}`;
+    const count = (categoryCounts.get(category.accountId) ?? 0) + 1;
+    if (
+      categoryIds.has(category.id) ||
+      categoryNames.has(scopedName) ||
+      builtinNames.has(name) ||
+      count > MAX_CUSTOM_CATEGORIES
+    )
+      return false;
+    categoryIds.add(category.id);
+    categoryNames.add(scopedName);
+    categoryCounts.set(category.accountId, count);
+    categoryAccounts.set(category.id, category.accountId);
+  }
+  if (
+    Array.isArray(v.emailTags) &&
+    v.emailTags.some(
+      (tag: TaggedConversation) =>
+        isCustomCategoryId(tag.category) && categoryAccounts.get(tag.category) !== tag.accountId,
+    )
   )
     return false;
   const conversationMap = new Map(conversations.map((c) => [c.id, c]));

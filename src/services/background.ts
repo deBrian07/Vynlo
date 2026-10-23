@@ -1,3 +1,4 @@
+import { isCustomCategoryId } from '../features/classification/model';
 import {
   DEFAULT_SETTINGS,
   type Backup,
@@ -279,6 +280,32 @@ export function createBackgroundHandler({
           if (!validBackup(message.backup)) throw new Error('Invalid backup.');
           const backup: Backup = message.backup;
           await database.update((records) => {
+            const categoryAliases = new Map<string, string>();
+            for (const category of backup.categories ?? []) {
+              const sameId = records.categories.find((local) => local.id === category.id);
+              if (sameId) {
+                if (sameId.accountId !== category.accountId)
+                  throw new Error('Category account conflict.');
+                categoryAliases.set(category.id, sameId.id);
+                continue;
+              }
+              const sameName = records.categories.find(
+                (local) =>
+                  local.accountId === category.accountId &&
+                  local.name.toLowerCase() === category.name.toLowerCase(),
+              );
+              if (sameName) categoryAliases.set(category.id, sameName.id);
+              else {
+                records.categories.push(category);
+                categoryAliases.set(category.id, category.id);
+              }
+            }
+            const importedTags = (backup.emailTags ?? []).map((tag) => {
+              if (!isCustomCategoryId(tag.category)) return tag;
+              const category = categoryAliases.get(tag.category);
+              if (!isCustomCategoryId(category)) throw new Error('Category unavailable.');
+              return { ...tag, category };
+            });
             for (const key of [
               'accounts',
               'conversations',
@@ -291,7 +318,9 @@ export function createBackgroundHandler({
               const ids = new Set(records[key].map((row) => row.id));
               const merged = [
                 ...records[key],
-                ...(backup[key] ?? []).filter((row) => !ids.has(row.id)),
+                ...(key === 'emailTags' ? importedTags : (backup[key] ?? [])).filter(
+                  (row) => !ids.has(row.id),
+                ),
               ];
               Object.assign(records, { [key]: merged });
             }

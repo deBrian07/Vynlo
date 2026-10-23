@@ -5,14 +5,15 @@ import type { ConversationRef } from '../../types/model';
 import { classificationClient } from './client';
 import { BROWSER_PREFERENCES_KEY, MODEL_ORIGINS, type BrowserRuntimeStatus } from './browser/model';
 import {
-  CATEGORIES,
-  CATEGORY_IDS,
   DEFAULT_CLASSIFICATION,
   MODEL,
   type Category,
   type ClassifierStatus,
   type TaggedConversation,
+  type UserCategory,
 } from './model';
+
+import { CategoryManager, categoryLabel, categoryOptions } from './category-manager';
 
 const initialStatus: ClassifierStatus = {
   ...DEFAULT_CLASSIFICATION,
@@ -397,21 +398,29 @@ export function ClassificationSettings() {
 type TagProps = {
   tags: TaggedConversation[];
   current?: ConversationRef | null;
+  accountId?: string | null;
+  categories?: UserCategory[];
   onUpdated: () => void;
 };
 
-export function CurrentEmailTag({ tags, current, onUpdated }: TagProps) {
+export function CurrentEmailTag({ tags, current, categories = [], onUpdated }: TagProps) {
   return current ? (
     <CurrentTag
       key={`${current.accountId}:${current.threadId}`}
       tags={tags}
+      categories={categories.filter((category) => category.accountId === current.accountId)}
       current={current}
       onUpdated={onUpdated}
     />
   ) : null;
 }
 
-function CurrentTag({ tags, current, onUpdated }: TagProps & { current: ConversationRef }) {
+function CurrentTag({
+  tags,
+  current,
+  categories = [],
+  onUpdated,
+}: TagProps & { current: ConversationRef }) {
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -475,9 +484,9 @@ function CurrentTag({ tags, current, onUpdated }: TagProps & { current: Conversa
           <option value="" disabled>
             Choose a tag…
           </option>
-          {CATEGORY_IDS.map((category) => (
-            <option key={category} value={category}>
-              {CATEGORIES[category].label}
+          {categoryOptions(categories).map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
             </option>
           ))}
         </select>
@@ -499,7 +508,7 @@ function CurrentTag({ tags, current, onUpdated }: TagProps & { current: Conversa
             disabled={busy}
             onClick={() => void act(() => classificationClient.set(current, tag.category))}
           >
-            <Check size={14} aria-hidden="true" /> Keep {CATEGORIES[tag.category].label}
+            <Check size={14} aria-hidden="true" /> Keep {categoryLabel(tag.category, categories)}
           </button>
         )}
         {tag && (
@@ -526,17 +535,34 @@ function CurrentTag({ tags, current, onUpdated }: TagProps & { current: Conversa
   );
 }
 
-export function EmailTags({ tags, current, onUpdated }: TagProps) {
+export function EmailTags({
+  tags: suppliedTags,
+  current,
+  accountId: explicitAccountId,
+  categories: suppliedCategories = [],
+  onUpdated,
+}: TagProps) {
+  const accountId = explicitAccountId ?? current?.accountId;
+  const categories = suppliedCategories.filter((category) => category.accountId === accountId);
+  const tags = accountId ? suppliedTags.filter((tag) => tag.accountId === accountId) : suppliedTags;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Category | 'all' | 'suggested'>('all');
+  const activeFilter =
+    filter === 'all' ||
+    filter === 'suggested' ||
+    categoryOptions(categories).some((category) => category.id === filter)
+      ? filter
+      : 'all';
+  const compatibleCurrent = current?.accountId === accountId ? current : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const filtered = [...tags]
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .filter(
       (tag) =>
-        (filter === 'all' || (filter === 'suggested' ? !tag.reviewed : tag.category === filter)) &&
-        `${tag.title} ${CATEGORIES[tag.category].label}`
+        (activeFilter === 'all' ||
+          (activeFilter === 'suggested' ? !tag.reviewed : tag.category === activeFilter)) &&
+        `${tag.title} ${categoryLabel(tag.category, categories)}`
           .toLowerCase()
           .includes(query.trim().toLowerCase()),
     );
@@ -563,11 +589,23 @@ export function EmailTags({ tags, current, onUpdated }: TagProps) {
           </p>
         </div>
       </div>
-      {current ? (
-        <CurrentEmailTag tags={tags} current={current} onUpdated={onUpdated} />
+      {compatibleCurrent ? (
+        <CurrentEmailTag
+          tags={tags}
+          current={compatibleCurrent}
+          categories={categories}
+          onUpdated={onUpdated}
+        />
       ) : (
         <p className="muted">Open a supported Gmail conversation to add a tag.</p>
       )}
+      <CategoryManager
+        key={accountId ?? 'unknown'}
+        accountId={accountId}
+        categories={categories}
+        tags={tags}
+        onUpdated={onUpdated}
+      />
       <div className="filter-bar">
         <label className="search-box">
           <Search size={16} aria-hidden="true" />
@@ -581,14 +619,14 @@ export function EmailTags({ tags, current, onUpdated }: TagProps) {
         </label>
         <select
           aria-label="Filter email tags"
-          value={filter}
+          value={activeFilter}
           onChange={(event) => setFilter(event.target.value as typeof filter)}
         >
           <option value="all">All categories</option>
           <option value="suggested">Needs review</option>
-          {CATEGORY_IDS.map((category) => (
-            <option value={category} key={category}>
-              {CATEGORIES[category].label}
+          {categoryOptions(categories).map((category) => (
+            <option value={category.id} key={category.id}>
+              {category.name}
             </option>
           ))}
         </select>
@@ -622,7 +660,7 @@ export function EmailTags({ tags, current, onUpdated }: TagProps) {
                 <ArrowUpRight size={14} aria-hidden="true" />
               </button>
               <div className="tags">
-                <span className="tag">{CATEGORIES[tag.category].label}</span>
+                <span className="tag">{categoryLabel(tag.category, categories)}</span>
                 <span className="muted">
                   {tag.reviewed ? 'Reviewed' : 'Suggested · review needed'}
                 </span>
@@ -644,7 +682,7 @@ export function EmailTags({ tags, current, onUpdated }: TagProps) {
               disabled={busy}
               onClick={() => void act(() => classificationClient.set(tag, tag.category))}
             >
-              <Check size={14} aria-hidden="true" /> Keep {CATEGORIES[tag.category].label}
+              <Check size={14} aria-hidden="true" /> Keep {categoryLabel(tag.category, categories)}
             </button>
           )}
           <label className="setting-row">
@@ -657,9 +695,9 @@ export function EmailTags({ tags, current, onUpdated }: TagProps) {
                 void act(() => classificationClient.set(tag, event.target.value as Category))
               }
             >
-              {CATEGORY_IDS.map((category) => (
-                <option value={category} key={category}>
-                  {CATEGORIES[category].label}
+              {categoryOptions(categories).map((category) => (
+                <option value={category.id} key={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>

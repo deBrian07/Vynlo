@@ -1,0 +1,33 @@
+.category-manager {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 20px 0;
+}
+.category-manager > .muted {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.category-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.category-row h3 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+.category-row p {
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+.category-row small {
+  color: var(--muted);
+}
+.category-manager .card-top {
+  flex-wrap: wrap;
+  gap: 12px;
+}

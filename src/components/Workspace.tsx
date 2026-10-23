@@ -354,6 +354,8 @@ export default function Workspace({
                   key={`${current.accountId}:${current.threadId}`}
                   current={current}
                   tags={emailTags}
+                  accountId={accountId}
+                  categories={data?.categories ?? []}
                   onUpdated={refresh}
                 />
               )}
@@ -362,6 +364,8 @@ export default function Workspace({
                   key={accountId ?? 'unidentified'}
                   current={current}
                   tags={emailTags}
+                  accountId={accountId}
+                  categories={data?.categories ?? []}
                   onUpdated={refresh}
                 />
               )}

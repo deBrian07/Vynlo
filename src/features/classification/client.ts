@@ -1,10 +1,12 @@
 import { validBrowserStatus } from './browser/model';
 import type { ConversationRef } from '../../types/model';
-import { validEmailTag } from '../../services/validation';
+import { validEmailTag, validUserCategory } from '../../services/validation';
 import type { ClassificationRequest } from './service';
 import {
   MODEL,
   type Category,
+  type CustomCategoryId,
+  type UserCategory,
   type ClassificationPreferences,
   type ClassifierStatus,
   type ConnectionCheck,
@@ -61,6 +63,14 @@ export const classificationClient = {
   set: (ref: ConversationRef, category: Category) =>
     request({ type: 'classify-set', ref, category }, tagFor(ref)),
   remove: (ref: ConversationRef) => request({ type: 'classify-remove', ref }, empty),
+  saveCategory: (accountId: string, name: string, description: string, id?: CustomCategoryId) =>
+    request(
+      { type: 'classify-save-category', accountId, name, description, ...(id ? { id } : {}) },
+      (value): value is UserCategory =>
+        validUserCategory(value) && value.accountId === accountId && (!id || value.id === id),
+    ),
+  deleteCategory: (accountId: string, id: CustomCategoryId) =>
+    request({ type: 'classify-delete-category', accountId, id }, empty),
   open: (tag: TaggedConversation) =>
     request({ type: 'classify-open', accountId: tag.accountId, id: tag.id }, empty),
 };

@@ -1,34 +1,40 @@
 # Classification validation
 
-Executed on 2026-10-22 in `/Users/brianchen/Documents/Vynlo`, branch `feat/local-classification`, based directly on local main `e9244ed`.
+Validation is split into software behavior, browser execution and classification quality. Passing unit tests cannot establish model accuracy or live Gmail compatibility.
 
-## Executed checks
+## What is verified in this checkout
 
-| Check                            | Result                                                                                                                                             |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm check`                     | Passed formatting, ESLint, strict TypeScript, 179 tests across 27 files and a production WXT build                                                 |
-| `pnpm preview:build`             | Passed; design harness built without a model or fabricated predictions                                                                             |
-| `pnpm zip`                       | Produced `.output/vynlo-0.1.0-chrome.zip`; 14 files, 220566 bytes                                                                                  |
-| ZIP/manifest inspection          | Root Manifest V3, required storage/alarms/notifications, optional loopback host only, fixed local connect policy; no source/test/profile artifacts |
-| `pnpm test:classifier`           | Attempted; exited 2 before inference because local Ollama was unreachable. No model accuracy report generated                                      |
-| `pnpm test:e2e --max-failures=1` | Attempted; Chromium aborted during launch with SIGABRT and EPERM, before the first test body. 13 remaining tests did not run                       |
-| Live Gmail                       | Not executed in this environment                                                                                                                   |
-| Branch publication               | `git push -u origin feat/local-classification` attempted; blocked by `Could not resolve host: github.com`                                          |
+- The Tev1 model repository, immutable revision, file sizes and LFS hashes are pinned in `src/features/classification/browser/assets.ts`.
+- Model files download only after a user action and a Chrome host permission prompt. Inference uses cached files only; the runtime cannot make a model-host request with a subject.
+- Unit tests exercise cache completion, truncation, cancellation, allowed redirect hosts, the runtime worker bridge, account-scoped tags, conservative review handling, and unsupported GPU behavior.
+- Engine tests use mocked WebGPU, tokenizers and model outputs. They verify prompt limits, one-forward eight-choice scoring, tensor cleanup and lifecycle behavior. They do not run Tev1 weights.
+- Browser tests use local Gmail fixtures. They do not prove compatibility with every Gmail layout.
+- A real Playwright Chromium startup was attempted but this environment's browser process aborted with a macOS Mach-port rendezvous error before page creation. No actual WebGPU adapter or model inference was exercised here.
 
-The 179 tests include the 120-example fixture validator and metric calculations, local response validation, denied permissions, malformed messages, account isolation, database migration, backup round trips, UI consent/review, stale inference, manual correction races and cleanup. Mocked inference tests establish application behavior, **not Tev1 classification quality**.
+## Production evidence still needed
 
-## Model evaluation blocker
+The browser integration is experimental until it has been exercised on supported physical devices. Run the extension with the pinned weights, and record the Chrome version, GPU adapter, model load time, warm inference median/p95, memory where available, failures, model revision and evaluation fixture hash. Include an Apple Silicon Mac and a supported non-Apple device. Verify that idle release and cancellation return resources.
 
-No Ollama executable, running local service or Tev1 weights are present. Shell requests cannot resolve Hugging Face, Ollama's registry or GitHub. The system Python also lacks Transformers and PyTorch. The Hugging Face checkpoint cannot run here without an obtainable runtime and weights. Browser access to a model card does not provide an execution runtime.
+Run the fixed synthetic screening set and inspect per-category confusion, ambiguous/injection acceptance, runtime errors, coverage and review-threshold precision. Then run a separately labeled, consented and held-out evaluation representative of real subjects. Freeze the prompt and thresholds before the held-out run. A score concentrated on one candidate is not a calibrated probability of correctness.
 
-## Release gate
+Keep suggestions opt-in and reviewable until independent quality and supported-hardware performance results justify a broader claim. The Tev1 fine-tuned model card currently says its release license is pending finalization; resolve licensing before public distribution or production claims.
 
-Tev1 classification is **experimental and not approved for production automation**. All model results remain suggestions requiring review, even when automatically generated. Manual tagging is independent of the model. Keep AI opt-in off by default.
+## Earlier implementation checks
 
-Once the local runtime is available, run `pnpm test:classifier` for the frozen 120-subject synthetic screen. Inspect the generated report and errors. A passing synthetic screen is only a first gate; production approval requires a separate representative, consented held-out dataset and supported-hardware latency measurements, followed by browser and authenticated Gmail checks. The setup and decision criteria are in [CLASSIFICATION.md](CLASSIFICATION.md).
+Before the WebGPU implementation, the Ollama-based tag storage and UI passed 179 tests and a WXT build. The Ollama runtime requirement has since been removed. Those historical checks do not validate the current packaged inference runtime. Current results should be appended below after running `pnpm check`, `pnpm test:e2e`, `pnpm zip` and inspecting the resulting package.
 
-The browser suite adds manual tag persistence, no-inference defaults and account switching. Two pre-existing fixture issues were corrected: the reminder preset locator now includes its displayed date in the accessible name, and seeded thread URLs include the required account query. These changes still need execution on a Chromium-capable host.
+## Current browser implementation checks
 
-## Local loading
+Run on 2026-10-22 in the original checkout, branch `feat/local-classification`:
 
-Run `pnpm build`, load `.output/chrome-mv3` through Chrome's **Load unpacked**, then reload Gmail. Continue using the same installed extension path/ID to preserve its local data. This branch does not include the separate brand-kit branch or alter an existing `release/Vynlo` folder. Do not load that older folder expecting this build.
+| Check | Result |
+| --- | --- |
+| `pnpm check` | Passed formatting, ESLint, strict TypeScript, 195 tests across 30 files, and production WXT build. |
+| `pnpm test:e2e` | Blocked before test bodies: all 14 launches of Playwright Chromium exited with `SIGABRT` and `EPERM` during browser startup. |
+| `pnpm zip` | Passed; produced `.output/vynlo-0.1.0-chrome.zip` (7.00 MB compressed; WXT reports 28.29 MB unpacked). |
+| ZIP inspection | Confirmed Manifest V3, offscreen permission, optional Hugging Face download hosts, and packaged inference HTML, JavaScript, WASM and runtime manifest. No broad tab/history/cookie permission. |
+| Runtime integrity | `node scripts/prepare-browser-ai.mjs --check` passed against all five packaged runtime/license files. |
+| Actual model/GPU | Not run. The environment could not launch Chromium, so it did not download Tev1 weights or inspect WebGPU. No latency, memory or accuracy result is claimed. |
+| Live Gmail | Not run. Fixture tests and UI tests are not live-Gmail compatibility evidence. |
+
+The host printed a pnpm registry metadata DNS warning while running local commands, but the installed toolchain completed the checks. The packaged runtime preparation used the already verified local artifacts; the generated browser build did not contain a CDN runtime import.

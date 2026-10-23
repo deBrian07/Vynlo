@@ -14,7 +14,7 @@ Vynlo does not store entire received message bodies or attachments. Text you del
 
 Structured records stay in IndexedDB under the extension origin. Small preferences and UI revision signals use `chrome.storage.local`. Vynlo does not use Chrome storage sync, run a server, request Google OAuth, use a Gmail API token, collect analytics or send your records to the project maintainer or third parties.
 
-Optional local AI starts off. After you enable it and grant loopback access, Vynlo sends only the subject of a supported opened conversation to local Ollama at `http://127.0.0.1:11434`. It checks the local runtime and installed model first; it does not scan the mailbox or download models. Inference runs in a separate local application that you control. Use the local-only setup in [classification](CLASSIFICATION.md). Manual tags work without AI. Disabling AI stops new inference; clearing Vynlo data also resets AI opt-in. Backups include tags, but never enable AI on import.
+Optional local AI starts off. To set it up, you choose a model download and grant access to Hugging Face's model file hosts. Vynlo downloads a pinned Tev1 model revision into extension-origin browser storage, then runs inference locally in Chrome's WebGPU worker. Only static model files are downloaded; email subjects are not sent to Hugging Face or another inference service. It does not scan the mailbox. Manual tags work without AI. Disabling AI stops new inference and releases active GPU resources; clearing Vynlo data also resets AI opt-in and removes the cached model. Backups include tags, but never include model files or enable AI on import. See [browser AI setup](BROWSER_AI.md).
 
 The extension has no hosted AI service, advertising, tracking pixels or automatic email sending. Inserting a snippet edits your Gmail draft only when you request it. Google may sync that draft as part of Gmail's normal behavior; Vynlo does not control Gmail's own network activity.
 
@@ -32,13 +32,13 @@ Settings let you disable Gmail enhancements, turn desktop notifications on or of
 
 ## Permission purposes
 
-| Access                        | Why it is needed                                                                                                                                                 |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Gmail content-script match    | Add Vynlo controls and read the current supported page context on `mail.google.com`                                                                              |
-| `storage`                     | Persist small preferences and notify extension views about local changes                                                                                         |
-| `alarms`                      | Resume the service worker when a local reminder is due                                                                                                           |
-| `notifications`               | Display an optional desktop reminder                                                                                                                             |
-| Optional `http://127.0.0.1/*` | Connect to local Ollama only after permission and AI opt-in; Chrome host patterns cannot restrict ports, while the client fixes port 11434 and rejects redirects |
+| Access                      | Why it is needed                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Gmail content-script match  | Add Vynlo controls and read the current supported page context on `mail.google.com`                       |
+| `storage`                   | Persist small preferences and notify extension views about local changes                                  |
+| `alarms`                    | Resume the service worker when a local reminder is due                                                    |
+| `notifications`             | Display an optional desktop reminder                                                                      |
+| Optional Hugging Face hosts | Download the pinned model files only after the user starts setup; no email content is sent to these hosts |
 
 Vynlo does not request browsing history, all-site access, cookies or the `tabs` permission. Opening a user-requested Gmail link uses the browser's tab-creation API without reading browsing history.
 

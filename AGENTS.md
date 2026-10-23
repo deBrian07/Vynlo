@@ -1,6 +1,6 @@
 # Vynlo working rules
 
-- Build a local-first Gmail extension. No hosted backend, Gmail API, OAuth, analytics or automatic sending. The user authorized optional Tev1 0.8B inference through local Ollama at 127.0.0.1:11434 only; default off, no cloud inference or mailbox-body persistence.
+- Build a local-first Gmail extension. No hosted backend, Gmail API, OAuth, analytics or automatic sending. The user authorized optional Tev1 0.8B inference inside the extension through WebGPU, with explicit model downloads from Hugging Face. Bundle executable runtime code locally; never send subjects to download hosts. Default off, no cloud inference or mailbox-body persistence.
 - Keep Gmail selectors inside `src/gmail`. Fail closed when account or conversation identity is uncertain.
 - All structured storage belongs to the extension service worker, never the Gmail origin.
 - Preserve account isolation. Validate messages and imported data at runtime.

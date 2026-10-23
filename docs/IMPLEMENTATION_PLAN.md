@@ -40,7 +40,7 @@ The review adds source-correlated opaque thread routes, safer native snippet ins
 
 `feat/local-classification` starts directly from local main `e9244ed` in the original repository. Remote main verification is blocked by GitHub DNS. It deliberately does not merge branding, tracking or backup branches.
 
-1. Typed eight-category taxonomy, strict local decision-response validation, bounded loopback-only Ollama client. No model downloads initiated by the extension.
+1. Typed eight-category taxonomy, strict local decision-score validation and account-scoped tags.
 2. Versioned account-scoped tag records in extension storage, backup compatibility, manual edits and removal; core tracking status is independent.
 3. Trusted service-worker routing, opt-in local inference and automatic classification of supported opened conversation subjects. No whole-mailbox scan, body storage, native Gmail label mutation or background polling.
 4. Guided settings and setup check, category browser/filter, current-conversation tagging and correction. Default off; automatic mode separately enabled; uncertain decisions marked for review.
@@ -48,4 +48,8 @@ The review adds source-correlated opaque thread routes, safer native snippet ins
 
 Acceptance: local tags persist without forcing follow-up tracking; records remain account-scoped; model failures cannot break Gmail/core actions; manual corrections survive automatic visits; all imported tags are validated and imports never silently enable inference.
 
-Classification implementation status (2026-10-22): tasks 1–5 implemented, including default-off settings, manual review, account-indexed database migration, backup compatibility and a 120-subject evaluation runner. `pnpm check` passed 179 tests and the production build; the ZIP was inspected. Actual model quality, browser fixtures and authenticated Gmail remain explicit release gates, not completed milestones. See [executed validation](CLASSIFICATION_VALIDATION.md). Publishing the branch was attempted but GitHub DNS is unavailable in this environment.
+The original Ollama integration has been replaced by an optional, default-off Chrome WebGPU runtime. See [browser AI](BROWSER_AI.md) for runtime/download boundaries and [executed validation](CLASSIFICATION_VALIDATION.md) for actual results. Model quality, actual GPU performance, browser fixtures and authenticated Gmail remain explicit release gates.
+
+## Browser GPU classification
+
+The extension-owned offscreen worker uses packaged runtime code and downloads only pinned model data after explicit consent. It uses one text-only quantized session, bounded input and candidate scoring in one forward pass, no CPU fallback, no inference queue and a 30-second idle unload. Keep download, GPU loading and measured inference timing distinct in the interface. Actual WebGPU/model execution remains required before performance or accuracy claims.

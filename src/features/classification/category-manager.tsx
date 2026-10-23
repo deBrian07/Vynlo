@@ -7,6 +7,7 @@ import {
   CATEGORIES,
   CATEGORY_IDS,
   MAX_CUSTOM_CATEGORIES,
+  normalizeCategoryName,
   type Category,
   type TaggedConversation,
   type UserCategory,
@@ -24,8 +25,7 @@ export const categoryOptions = (categories: UserCategory[]) => [
 export const categoryLabel = (id: Category, categories: UserCategory[]) =>
   categoryOptions(categories).find((category) => category.id === id)?.name ??
   'Unavailable category';
-const normalize = (value: string) =>
-  value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+const normalize = normalizeCategoryName;
 export function CategoryManager({
   accountId,
   categories,

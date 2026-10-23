@@ -15,6 +15,7 @@ import {
   CATEGORIES,
   CATEGORY_IDS,
   MAX_CUSTOM_CATEGORIES,
+  normalizeCategoryName,
   isCustomCategoryId,
   type CustomCategoryId,
   type UserCategory,
@@ -159,7 +160,8 @@ export function createClassificationService({
     }
   };
   const edits = new Map<string, number>();
-  let flight: { key: string; promise: Promise<TaggedConversation | null> } | undefined;
+  let flight:
+    { key: string; automatic: boolean; promise: Promise<TaggedConversation | null> } | undefined;
   // The map only covers the one active inference, so it cannot grow with mailbox size.
   const changed = (key: string) => {
     // Also cancels a request still awaiting preferences, before its flight is registered.
@@ -211,7 +213,7 @@ export function createClassificationService({
     }
     const key = conversationId(ref.accountId, ref.threadId);
     if (flight) {
-      if (flight.key === key) return flight.promise;
+      if (flight.key === key && flight.automatic === automatic) return flight.promise;
       if (automatic) return null;
       throw new Error('A local suggestion is already running. Try again when it finishes.');
     }
@@ -296,7 +298,7 @@ export function createClassificationService({
       if (saved) await platform.publishRevision();
       return saved;
     })();
-    flight = { key, promise };
+    flight = { key, automatic, promise };
     try {
       return await promise;
     } finally {
@@ -445,9 +447,13 @@ export function createClassificationService({
             const name = message.name.trim();
             if (
               local.some(
-                (c) => c.id !== message.id && c.name.toLowerCase() === name.toLowerCase(),
+                (c) =>
+                  c.id !== message.id &&
+                  normalizeCategoryName(c.name) === normalizeCategoryName(name),
               ) ||
-              CATEGORY_IDS.some((id) => CATEGORIES[id].label.toLowerCase() === name.toLowerCase())
+              CATEGORY_IDS.some(
+                (id) => normalizeCategoryName(CATEGORIES[id].label) === normalizeCategoryName(name),
+              )
             )
               throw new Error('A category with this name already exists.');
             if (!existing && local.length >= MAX_CUSTOM_CATEGORIES)

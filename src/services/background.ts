@@ -1,4 +1,4 @@
-import { isCustomCategoryId } from '../features/classification/model';
+import { isCustomCategoryId, normalizeCategoryName } from '../features/classification/model';
 import {
   DEFAULT_SETTINGS,
   type Backup,
@@ -292,7 +292,7 @@ export function createBackgroundHandler({
               const sameName = records.categories.find(
                 (local) =>
                   local.accountId === category.accountId &&
-                  local.name.toLowerCase() === category.name.toLowerCase(),
+                  normalizeCategoryName(local.name) === normalizeCategoryName(category.name),
               );
               if (sameName) categoryAliases.set(category.id, sameName.id);
               else {

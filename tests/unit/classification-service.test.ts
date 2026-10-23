@@ -279,6 +279,62 @@ describe('local classification worker', () => {
     expect(await duplicate).toEqual(await first);
     expect(f.platform.infer).toHaveBeenCalledTimes(1);
   });
+  it('rejects normalized builtin and custom category name collisions', async () => {
+    const f = fixture();
+    const save = (name: string) =>
+      f.request({
+        type: 'classify-save-category',
+        accountId: ref.accountId,
+        name,
+        description: 'A local category',
+      });
+    expect(await save('Ｗｏｒｋ')).toEqual({
+      ok: false,
+      error: 'A category with this name already exists.',
+    });
+    expect((await save('Research papers')).ok).toBe(true);
+    expect(await save('  RESEARCH   papers ')).toEqual({
+      ok: false,
+      error: 'A category with this name already exists.',
+    });
+    expect((await f.database.read(ref.accountId)).categories).toHaveLength(1);
+  });
+  it('does not apply automatic eligibility rules to a simultaneous manual request', async () => {
+    const f = fixture();
+    const started = deferred<void>();
+    const pending = deferred<Prediction>();
+    vi.mocked(f.platform.infer!).mockImplementation(() => {
+      started.resolve();
+      return pending.promise;
+    });
+    const automatic = f.request({ type: 'classify-automatic', ref });
+    await started.promise;
+    expect(await f.request({ type: 'classify-suggest', ref })).toEqual({
+      ok: false,
+      error: 'A local suggestion is already running. Try again when it finishes.',
+    });
+    expect(f.platform.infer).toHaveBeenCalledTimes(1);
+    pending.resolve(prediction);
+    expect((await automatic).ok).toBe(true);
+  });
+  it('skips automatic requests while a manual request for the same thread is running', async () => {
+    const f = fixture();
+    const started = deferred<void>();
+    const pending = deferred<Prediction>();
+    vi.mocked(f.platform.infer!).mockImplementation(() => {
+      started.resolve();
+      return pending.promise;
+    });
+    const manual = f.request({ type: 'classify-suggest', ref });
+    await started.promise;
+    expect(await f.request({ type: 'classify-automatic', ref })).toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(f.platform.infer).toHaveBeenCalledTimes(1);
+    pending.resolve(prediction);
+    expect((await manual).ok).toBe(true);
+  });
   it('only allows trusted extension pages to check or configure the model', async () => {
     const f = fixture();
     expect((await f.request({ type: 'classify-check' })).ok).toBe(false);

@@ -136,6 +136,13 @@ describe('account-scoped custom category storage', () => {
         ],
       },
       { categories: [category({ name: 'Work' })] },
+      { categories: [category({ name: 'Ｗｏｒｋ' })] },
+      {
+        categories: [
+          category({ name: 'Research Papers' }),
+          category({ id: 'custom:00000000-0000-4000-8000-000000000002', name: 'Research  Papers' }),
+        ],
+      },
       {
         categories: Array.from({ length: 17 }, (_, i) =>
           category({

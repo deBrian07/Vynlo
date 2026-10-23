@@ -37,6 +37,8 @@ export type CustomCategoryId = `custom:${string}`;
 export type Category = BuiltinCategory | CustomCategoryId;
 export const CATEGORY_IDS = Object.keys(CATEGORIES) as BuiltinCategory[];
 export const MAX_CUSTOM_CATEGORIES = 16;
+export const normalizeCategoryName = (name: string) =>
+  name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 export const isCustomCategoryId = (value: unknown): value is CustomCategoryId =>
   typeof value === 'string' &&
   /^custom:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);

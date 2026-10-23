@@ -4,6 +4,7 @@ import {
   isCategory,
   isCustomCategoryId,
   MAX_CUSTOM_CATEGORIES,
+  normalizeCategoryName,
   MODEL,
   type TaggedConversation,
   type UserCategory,
@@ -219,11 +220,13 @@ export function validBackup(v: unknown): v is Backup {
   const categoryIds = new Set<string>();
   const categoryNames = new Set<string>();
   const categoryCounts = new Map<string, number>();
-  const builtinNames = new Set(CATEGORY_IDS.map((key) => CATEGORIES[key].label.toLowerCase()));
+  const builtinNames = new Set(
+    CATEGORY_IDS.map((key) => normalizeCategoryName(CATEGORIES[key].label)),
+  );
   const categoryAccounts = new Map<string, string>();
   for (const category of categories) {
     if (!validUserCategory(category) || !accountIds.has(category.accountId)) return false;
-    const name = category.name.toLowerCase();
+    const name = normalizeCategoryName(category.name);
     const scopedName = `${category.accountId}:${name}`;
     const count = (categoryCounts.get(category.accountId) ?? 0) + 1;
     if (

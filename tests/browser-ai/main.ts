@@ -8,6 +8,13 @@ import type { Prediction } from '../../src/features/classification/model';
 import { MODEL_DOWNLOAD_BYTES } from '../../src/features/classification/browser/assets';
 import { NORMALIZATION_REVISION } from '../../src/features/classification/browser/onnx-normalization';
 import {
+  buildBenchmarkDecisionMessages,
+  isPromptVariant,
+  PROMPT_VARIANTS,
+  promptLabels,
+  type PromptVariant,
+} from './prompt-candidates';
+import {
   DOWNLOAD_TIMEOUT_MS,
   INFERENCE_TIMEOUT_MS,
   LOAD_TIMEOUT_MS,
@@ -33,6 +40,13 @@ const runButton = element<HTMLButtonElement>('run');
 const exportButton = element<HTMLButtonElement>('export');
 const cancelButton = element<HTMLButtonElement>('cancel');
 const rows = element('rows');
+const promptSelect = element<HTMLSelectElement>('prompt');
+for (const variant of PROMPT_VARIANTS) {
+  const option = document.createElement('option');
+  option.value = variant;
+  option.textContent = promptLabels[variant];
+  promptSelect.append(option);
+}
 element('model-revision').textContent = NORMALIZATION_REVISION;
 let worker: Worker | null = null;
 let runtimeStatus: BrowserRuntimeStatus | undefined;
@@ -50,6 +64,7 @@ interface WorkerResult {
   prediction?: Prediction;
   status: BrowserRuntimeStatus;
   adapter?: unknown;
+  promptVariant?: PromptVariant;
 }
 const pending = new Map<string, Pending>();
 function setBusy(value: boolean) {
@@ -57,6 +72,7 @@ function setBusy(value: boolean) {
   checkButton.disabled = value;
   downloadButton.disabled = value;
   runButton.disabled = value;
+  promptSelect.disabled = value;
 }
 function stop(message = 'Cancelled. The worker and GPU session were unloaded.') {
   generation++;
@@ -115,7 +131,11 @@ function ensureWorker() {
   );
   return instance;
 }
-function rpc(type: 'check' | 'prepare' | 'infer', subject?: string): Promise<WorkerResult> {
+function rpc(
+  type: 'check' | 'prepare' | 'infer',
+  subject?: string,
+  promptVariant?: PromptVariant,
+): Promise<WorkerResult> {
   const instance = ensureWorker();
   const id = crypto.randomUUID();
   return new Promise((resolve, reject) => {
@@ -136,7 +156,7 @@ function rpc(type: 'check' | 'prepare' | 'infer', subject?: string): Promise<Wor
             : LOAD_TIMEOUT_MS
           : 15_000,
     );
-    instance.postMessage({ id, type, subject });
+    instance.postMessage({ id, type, subject, promptVariant });
   });
 }
 function updateDevice(result: WorkerResult) {
@@ -216,6 +236,18 @@ runButton.addEventListener(
   () =>
     void action(async () => {
       const runGeneration = generation;
+      const variant = promptSelect.value;
+      if (!isPromptVariant(variant)) throw new Error('Choose a benchmark prompt first.');
+      const promptMessages = buildBenchmarkDecisionMessages('', variant);
+      const promptHash = Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest(
+            'SHA-256',
+            new TextEncoder().encode(JSON.stringify(promptMessages)),
+          ),
+        ),
+        (byte) => byte.toString(16).padStart(2, '0'),
+      ).join('');
       const checked = await rpc('check');
       updateDevice(checked);
       if (!checked.status.modelCached && !['cached', 'ready'].includes(checked.status.state))
@@ -249,9 +281,13 @@ runButton.addEventListener(
         let outcome: EvaluationOutcome;
         let forwardMs: number | undefined;
         try {
-          const result = await rpc('infer', example.subject);
+          const result = await rpc('infer', example.subject, variant);
           runtimeStatus = result.status;
           if (!result.prediction) throw new Error('The engine returned no prediction.');
+          if (result.promptVariant !== variant)
+            throw new Error(
+              'The benchmark worker used a different prompt. Reload before retrying.',
+            );
           forwardMs = result.status.lastInferenceMs;
           outcome = {
             id: example.id,
@@ -300,6 +336,13 @@ runButton.addEventListener(
         startedAt,
         completedAt: new Date().toISOString(),
         totalWallMs: performance.now() - started,
+        prompt: {
+          id: variant,
+          label: promptLabels[variant],
+          sha256: promptHash,
+          messagesWithEmptySubject: promptMessages,
+          stage: 'Development screen; not an independent held-out evaluation.',
+        },
         model: {
           repository: MODEL_REPO,
           revision: MODEL_REVISION,
@@ -330,13 +373,13 @@ runButton.addEventListener(
         examples: fixture.examples,
       };
       element('metrics').textContent = JSON.stringify(
-        { complete, stoppedReason, metrics, measurements },
+        { prompt: variant, complete, stoppedReason, metrics, measurements },
         null,
         2,
       );
       element('summary').textContent =
         complete && metrics
-          ? `${outcomes.length} actual model outputs. Straightforward accuracy: ${(metrics.straightforward.accuracy * 100).toFixed(1)}%. Macro F1: ${metrics.straightforward.macroF1.toFixed(3)}. Synthetic screen: ${metrics.gate.passed ? 'passed' : 'did not pass'}. Production readiness remains unproven.`
+          ? `${promptLabels[variant]}: ${outcomes.length} actual model outputs. Straightforward accuracy: ${(metrics.straightforward.accuracy * 100).toFixed(1)}%. Macro F1: ${metrics.straightforward.macroF1.toFixed(3)}. Synthetic screen: ${metrics.gate.passed ? 'passed' : 'did not pass'}. Production readiness remains unproven.`
           : `Stopped after ${outcomes.length} / ${fixture.examples.length} fixtures. Partial results can be exported; no complete accuracy claim is available.`;
       exportButton.disabled = false;
       statusLabel.textContent = complete

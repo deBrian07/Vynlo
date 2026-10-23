@@ -1,7 +1,15 @@
 import { createBrowserEngine } from '../../src/features/classification/browser/engine';
+import {
+  buildBenchmarkDecisionMessages,
+  isPromptVariant,
+  type PromptVariant,
+} from './prompt-candidates';
 
+let promptVariant: PromptVariant = 'baseline';
+let inferring = false;
 const engine = createBrowserEngine({
   onProgress: (status) => self.postMessage({ type: 'progress', status }),
+  buildMessages: (subject) => buildBenchmarkDecisionMessages(subject, promptVariant),
 });
 interface BenchmarkGpu {
   requestAdapter(options: { powerPreference: string }): Promise<{
@@ -26,7 +34,12 @@ async function adapterInfo() {
   };
 }
 self.addEventListener('message', (event: MessageEvent<unknown>) => {
-  const request = event.data as { id?: unknown; type?: unknown; subject?: unknown } | null;
+  const request = event.data as {
+    id?: unknown;
+    type?: unknown;
+    subject?: unknown;
+    promptVariant?: unknown;
+  } | null;
   if (!request || typeof request.id !== 'string') return;
   const run = async () => {
     switch (request.type) {
@@ -37,8 +50,17 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
         return { status: await engine.prepare(), adapter: await adapterInfo() };
       case 'infer': {
         if (typeof request.subject !== 'string') throw new Error('Synthetic subject is missing.');
-        const prediction = await engine.infer(request.subject);
-        return { prediction, status: await engine.status() };
+        if (!isPromptVariant(request.promptVariant)) throw new Error('Unknown benchmark prompt.');
+        if (inferring) throw new Error('A benchmark inference is already running.');
+        const selected = request.promptVariant;
+        inferring = true;
+        promptVariant = selected;
+        try {
+          const prediction = await engine.infer(request.subject);
+          return { prediction, status: await engine.status(), promptVariant: selected };
+        } finally {
+          inferring = false;
+        }
       }
       default:
         throw new Error('Unknown benchmark operation.');

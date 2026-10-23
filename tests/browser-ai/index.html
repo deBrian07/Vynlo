@@ -35,7 +35,8 @@
         margin-top: 20px;
         background: #16222f;
       }
-      button {
+      button,
+      select {
         font: inherit;
         padding: 10px 14px;
         border-radius: 8px;
@@ -135,6 +136,16 @@
           <button id="cancel" type="button">Cancel / unload</button>
           <button id="clear-cache" type="button">Delete benchmark model cache</button>
         </div>
+        <p>
+          <label for="prompt">Prompt to evaluate</label>
+          <select id="prompt" aria-describedby="prompt-help"></select>
+        </p>
+        <p id="prompt-help">
+          Experimental prompts test category boundaries and instruction defense. Each run uses the
+          same 120 development subjects, cached model and unchanged release thresholds. No extension
+          settings are changed. Export each run before starting another; a fresh held-out test is
+          still required.
+        </p>
         <p id="status" role="status" aria-live="polite">
           Ready. Choose Check GPU to inspect this browser without downloading a model.
         </p>

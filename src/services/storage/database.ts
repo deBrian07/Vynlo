@@ -57,6 +57,7 @@ export class VynloDatabase {
   private open(): Promise<IDBDatabase> {
     this.connection ??= new Promise((resolve, reject) => {
       const request = this.factory.open(this.name, DATABASE_VERSION);
+      let abandoned = false;
       request.onupgradeneeded = () => {
         for (const name of TABLES) {
           if (!request.result.objectStoreNames.contains(name)) {
@@ -72,6 +73,10 @@ export class VynloDatabase {
           request.result.createObjectStore('metadata');
       };
       request.onsuccess = () => {
+        if (abandoned) {
+          request.result.close();
+          return;
+        }
         request.result.onversionchange = () => {
           request.result.close();
           this.connection = undefined;
@@ -79,10 +84,15 @@ export class VynloDatabase {
         resolve(request.result);
       };
       request.onerror = () => {
+        if (abandoned) return;
         this.connection = undefined;
         reject(new Error('Vynlo could not open local storage.'));
       };
-      request.onblocked = () => reject(new Error('Close other Vynlo pages and try again.'));
+      request.onblocked = () => {
+        abandoned = true;
+        this.connection = undefined;
+        reject(new Error('Close other Vynlo pages and try again.'));
+      };
     });
     return this.connection;
   }

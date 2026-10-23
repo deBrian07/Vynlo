@@ -79,3 +79,26 @@ describe('versioned local database', () => {
     await db.close();
   });
 });
+
+it('recovers a blocked schema upgrade after the older page closes', async () => {
+  const factory = new IDBFactory();
+  const request = factory.open('blocked-upgrade', 2);
+  request.onupgradeneeded = () => request.result.createObjectStore('accounts', { keyPath: 'id' });
+  const old = await new Promise<IDBDatabase>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const database = new VynloDatabase('blocked-upgrade', factory);
+  try {
+    await expect(database.read()).rejects.toThrow('Close other Vynlo pages and try again.');
+    old.close();
+    expect((await database.read()).categories).toEqual([]);
+    await database.update((records) =>
+      records.accounts.push({ id: 'a@example.com', email: 'a@example.com', createdAt: 1 }),
+    );
+    expect((await database.read()).accounts).toHaveLength(1);
+  } finally {
+    old.close();
+    await database.close();
+  }
+});

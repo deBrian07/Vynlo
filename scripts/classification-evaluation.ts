@@ -108,8 +108,12 @@ export function summarizeEvaluation(examples: EvaluationExample[], outcomes: Eva
       Object.fromEntries([...CATEGORY_IDS, 'error'].map((id) => [id, 0])),
     ]),
   ) as Record<Category, Record<Category | 'error', number>>;
-  for (const example of straightforward)
-    confusion[example.acceptable[0]!][byId.get(example.id)!.prediction?.category ?? 'error']++;
+  for (const example of straightforward) {
+    const row = confusion[example.acceptable[0]!]!;
+    const predicted = byId.get(example.id)!.prediction?.category;
+    const key = predicted && Object.hasOwn(row, predicted) ? predicted : 'error';
+    row[key] = (row[key] ?? 0) + 1;
+  }
   const perCategory = Object.fromEntries(
     CATEGORY_IDS.map((category) => {
       const support = straightforward.filter((entry) => entry.acceptable[0] === category).length;

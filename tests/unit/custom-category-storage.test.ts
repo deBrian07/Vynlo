@@ -146,7 +146,7 @@ describe('account-scoped custom category storage', () => {
       },
     ])
       expect(validBackup({ ...b, ...changes })).toBe(false);
-    const { categories: _categories, emailTags: _tags, ...old } = b;
+    const old = { ...b, categories: undefined, emailTags: undefined };
     expect(validBackup(old)).toBe(true);
   });
   it('rolls back category deletion unless its dependent tags are removed together', async () => {

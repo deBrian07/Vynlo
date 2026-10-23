@@ -5,6 +5,19 @@ import { conversationId, isAccountId, validConversationRef } from '../../service
 import { validBrowserStatus, type BrowserRuntimeStatus } from './browser/model';
 import { parsePrediction } from './inference';
 import {
+  buildDecisionContext,
+  contextCategoryIds,
+  confirmedExamples,
+  MIN_LEARNING_EXAMPLES,
+  type DecisionContext,
+} from './decision-context';
+import {
+  CATEGORIES,
+  CATEGORY_IDS,
+  MAX_CUSTOM_CATEGORIES,
+  isCustomCategoryId,
+  type CustomCategoryId,
+  type UserCategory,
   DEFAULT_CLASSIFICATION,
   MODEL,
   isCategory,
@@ -30,9 +43,22 @@ export type ClassificationRequest =
   | { type: 'classify-suggest' | 'classify-automatic'; ref: ConversationRef }
   | { type: 'classify-set'; ref: ConversationRef; category: Category }
   | { type: 'classify-remove'; ref: ConversationRef }
+  | {
+      type: 'classify-save-category';
+      accountId: string;
+      id?: CustomCategoryId;
+      name: string;
+      description: string;
+    }
+  | { type: 'classify-delete-category'; accountId: string; id: CustomCategoryId }
   | { type: 'classify-open'; accountId: string; id: string };
 export type ClassificationData =
-  ClassifierStatus | ConnectionCheck | TaggedConversation | BrowserRuntimeStatus | null;
+  | ClassifierStatus
+  | ConnectionCheck
+  | TaggedConversation
+  | BrowserRuntimeStatus
+  | UserCategory
+  | null;
 export type ClassificationResponse =
   { ok: true; data: ClassificationData } | { ok: false; error: string };
 export interface ClassificationPlatform {
@@ -43,7 +69,7 @@ export interface ClassificationPlatform {
   isEnhancementEnabled(): Promise<boolean>;
   publishRevision(): Promise<void>;
   openTab(url: string): Promise<void>;
-  infer?(subject: string): Promise<Prediction>;
+  infer?(subject: string, context?: DecisionContext): Promise<Prediction>;
   check?(): Promise<ConnectionCheck>;
   browserStatus?(): Promise<BrowserRuntimeStatus>;
   prepare?(): Promise<BrowserRuntimeStatus>;
@@ -75,6 +101,18 @@ function validRequest(v: unknown): v is ClassificationRequest {
       return validConversationRef(v.ref);
     case 'classify-set':
       return validConversationRef(v.ref) && isCategory(v.category);
+    case 'classify-save-category':
+      return (
+        isAccountId(v.accountId) &&
+        (v.id === undefined || isCustomCategoryId(v.id)) &&
+        typeof v.name === 'string' &&
+        !!v.name.trim() &&
+        v.name.length <= 50 &&
+        typeof v.description === 'string' &&
+        v.description.length <= 160
+      );
+    case 'classify-delete-category':
+      return isAccountId(v.accountId) && isCustomCategoryId(v.id);
     case 'classify-open':
       return (
         isAccountId(v.accountId) &&
@@ -179,22 +217,42 @@ export function createClassificationService({
     }
     const revision = edits.get(key) ?? 0;
     const promise = (async (): Promise<TaggedConversation | null> => {
-      const before = (await database.read(ref.accountId)).emailTags.find((tag) => tag.id === key);
+      const snapshot = await database.read(ref.accountId);
+      const before = snapshot.emailTags.find((tag) => tag.id === key);
+      const context = buildDecisionContext(
+        ref.accountId,
+        ref.title,
+        ref.threadId,
+        snapshot.categories ?? [],
+        snapshot.emailTags,
+      );
       if (automatic && before) return before;
       if (startedEpoch !== epoch || revision !== (edits.get(key) ?? 0)) return null;
       if (!platform.infer) throw new Error(setupError);
-      const result = await platform.infer(ref.title);
-      const prediction = parsePrediction({
-        model: MODEL,
-        answers: {
-          category: {
-            type: 'choice',
-            choice: result?.category,
-            probabilities: result?.probabilities,
-            confidence: result?.confidence,
+      const result = context
+        ? await platform.infer(ref.title, context)
+        : await platform.infer(ref.title);
+      const prediction = parsePrediction(
+        {
+          model: MODEL,
+          answers: {
+            category: {
+              type: 'choice',
+              choice: result?.category,
+              probabilities: result?.probabilities,
+              confidence: result?.confidence,
+            },
           },
         },
-      });
+        contextCategoryIds(context),
+      );
+      if (
+        automatic &&
+        isCustomCategoryId(prediction.category) &&
+        confirmedExamples(snapshot.emailTags, ref.accountId, prediction.category, ref.threadId)
+          .length < MIN_LEARNING_EXAMPLES
+      )
+        return null;
       const currentPreferences = await getPreferences();
       if (
         pendingConfiguration > 0 ||
@@ -333,6 +391,13 @@ export function createClassificationService({
           changed(key);
           let saved: TaggedConversation | null = null;
           await database.update((records) => {
+            if (
+              isCustomCategoryId(message.category) &&
+              !records.categories.some(
+                (c) => c.accountId === ref.accountId && c.id === message.category,
+              )
+            )
+              throw new Error('This category is no longer available.');
             const existing = records.emailTags.find((tag) => tag.id === key);
             const timestamp = now();
             saved = {
@@ -370,6 +435,57 @@ export function createClassificationService({
           await platform.publishRevision();
           return { ok: true, data: null };
         }
+        case 'classify-save-category': {
+          epoch++;
+          let saved: UserCategory | undefined;
+          await database.update((records) => {
+            const local = records.categories.filter((c) => c.accountId === message.accountId);
+            const existing = message.id ? local.find((c) => c.id === message.id) : undefined;
+            if (message.id && !existing) throw new Error('This category is no longer available.');
+            const name = message.name.trim();
+            if (
+              local.some(
+                (c) => c.id !== message.id && c.name.toLowerCase() === name.toLowerCase(),
+              ) ||
+              CATEGORY_IDS.some((id) => CATEGORIES[id].label.toLowerCase() === name.toLowerCase())
+            )
+              throw new Error('A category with this name already exists.');
+            if (!existing && local.length >= MAX_CUSTOM_CATEGORIES)
+              throw new Error('You can create up to 16 custom categories per account.');
+            const timestamp = now();
+            saved = {
+              id: existing?.id ?? `custom:${crypto.randomUUID()}`,
+              accountId: message.accountId,
+              name,
+              description: message.description.trim(),
+              createdAt: existing?.createdAt ?? timestamp,
+              updatedAt: timestamp,
+            };
+            if (!records.accounts.some((a) => a.id === message.accountId))
+              records.accounts.push({
+                id: message.accountId,
+                email: message.accountId,
+                createdAt: timestamp,
+              });
+            records.categories = records.categories.filter((c) => c.id !== saved!.id);
+            records.categories.push(saved);
+          });
+          await platform.publishRevision();
+          return { ok: true, data: saved! };
+        }
+        case 'classify-delete-category': {
+          epoch++;
+          await database.update((records) => {
+            records.categories = records.categories.filter(
+              (c) => c.accountId !== message.accountId || c.id !== message.id,
+            );
+            records.emailTags = records.emailTags.filter(
+              (t) => t.accountId !== message.accountId || t.category !== message.id,
+            );
+          });
+          await platform.publishRevision();
+          return { ok: true, data: null };
+        }
         case 'classify-open': {
           const tag = (await database.read(message.accountId)).emailTags.find(
             (tag) => tag.id === message.id && tag.accountId === message.accountId,
@@ -383,6 +499,11 @@ export function createClassificationService({
     } catch (error) {
       const allowed = [
         setupError,
+        'This subject exceeds the local AI token budget. Choose a tag manually.',
+        'Local AI cannot safely score these category choices.',
+        'This category is no longer available.',
+        'A category with this name already exists.',
+        'You can create up to 16 custom categories per account.',
         cancelled,
         'Local AI needs WebGPU with shader-f16 support. Try an updated Chrome browser.',
         'Local AI needs GPU buffers of at least 485 MiB. This device cannot fit the model. Manual tags remain available.',

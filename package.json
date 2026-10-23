@@ -11,8 +11,8 @@
   },
   "scripts": {
     "dev": "wxt",
-    "build": "wxt build",
-    "zip": "wxt zip",
+    "build": "node scripts/prepare-browser-ai.mjs && wxt build",
+    "zip": "node scripts/prepare-browser-ai.mjs && wxt zip",
     "postinstall": "wxt prepare",
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",
@@ -24,7 +24,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "test:classifier": "node scripts/run-classifier-evaluation.mjs"
+    "prepare:browser-ai": "node scripts/prepare-browser-ai.mjs",
+    "check:browser-ai": "node scripts/prepare-browser-ai.mjs --check"
   },
   "dependencies": {
     "react": "19.3.1",

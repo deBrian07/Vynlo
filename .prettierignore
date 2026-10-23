@@ -7,3 +7,6 @@ test-results
 playwright-report
 
 release
+
+.npm-browser-cache/
+public/inference-runtime/

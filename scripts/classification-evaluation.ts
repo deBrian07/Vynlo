@@ -1,14 +1,5 @@
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
-import { resolve } from 'node:path';
-import {
-  buildDecisionRequest,
-  checkConnection,
-  classifySubject,
-} from '../src/features/classification/inference';
 import {
   CATEGORY_IDS,
-  MODEL,
   isCategory,
   type Category,
   type Prediction,
@@ -63,7 +54,8 @@ export function validateFixture(value: unknown): EvaluationFixture {
     ) {
       throw new Error('Invalid or duplicate evaluation example.');
     }
-    buildDecisionRequest(entry.subject);
+    if (!entry.subject.trim() || entry.subject.length > 500)
+      throw new Error('Evaluation subject must contain 1 to 500 characters.');
     ids.add(entry.id);
     subjects.add(entry.subject.trim().toLowerCase());
     return entry as unknown as EvaluationExample;
@@ -198,73 +190,4 @@ export function summarizeEvaluation(examples: EvaluationExample[], outcomes: Eva
       scope: 'Synthetic regression screen only; passing does not establish production readiness.',
     },
   };
-}
-
-export async function runCli(): Promise<number> {
-  const fixtureText = await readFile(resolve('tests/fixtures/classification-eval.json'), 'utf8');
-  const fixture = validateFixture(JSON.parse(fixtureText) as unknown);
-  // No email data is sent during this check. Abort before scoring when the runtime is missing.
-  let connection;
-  try {
-    connection = await checkConnection();
-  } catch (error) {
-    process.stderr.write(
-      `Evaluation blocked: ${error instanceof Error ? error.message : 'Local model unavailable.'}\nNo model quality report was generated.\n`,
-    );
-    return 2;
-  }
-  const startedAt = new Date().toISOString();
-  // Stable shuffled order avoids benchmarking one entire category only during warm-up.
-  const examples = [...fixture.examples].sort((a, b) =>
-    createHash('sha256')
-      .update(a.id)
-      .digest('hex')
-      .localeCompare(createHash('sha256').update(b.id).digest('hex')),
-  );
-  const outcomes: EvaluationOutcome[] = [];
-  for (const example of examples) {
-    const start = performance.now();
-    try {
-      outcomes.push({
-        id: example.id,
-        prediction: await classifySubject(example.subject),
-        latencyMs: performance.now() - start,
-      });
-    } catch (error) {
-      outcomes.push({
-        id: example.id,
-        error: error instanceof Error ? error.message : 'Inference failed.',
-        latencyMs: performance.now() - start,
-      });
-    }
-    process.stdout.write(`${outcomes.length}/${examples.length} ${example.id}\n`);
-  }
-  const metrics = summarizeEvaluation(examples, outcomes);
-  const report = {
-    schemaVersion: 1,
-    model: MODEL,
-    ollamaVersion: connection.version,
-    startedAt,
-    completedAt: new Date().toISOString(),
-    environment: { platform: process.platform, architecture: process.arch, node: process.version },
-    fixtureSha256: createHash('sha256').update(fixtureText).digest('hex'),
-    requestTemplateSha256: createHash('sha256')
-      .update(JSON.stringify(buildDecisionRequest('evaluation template')))
-      .digest('hex'),
-    evidence: fixture.description,
-    metrics,
-    outcomes,
-  };
-  await mkdir(resolve('artifacts'), { recursive: true });
-  await writeFile(
-    resolve('artifacts/classification-evaluation.json'),
-    JSON.stringify(report, null, 2) + '\n',
-  );
-  process.stdout.write(
-    JSON.stringify(metrics, null, 2) + '\nReport: artifacts/classification-evaluation.json\n',
-  );
-  process.stdout.write(
-    'This is a synthetic screen. Release requires a separate consented, held-out mailbox evaluation.\n',
-  );
-  return metrics.gate.passed ? 0 : 1;
 }

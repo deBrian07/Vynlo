@@ -5,7 +5,7 @@ import {
   summarizeEvaluation,
   validateFixture,
   type EvaluationOutcome,
-} from '../../scripts/evaluate-classifier';
+} from '../../scripts/classification-evaluation';
 import {
   CATEGORY_IDS,
   type Category,

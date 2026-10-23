@@ -6,6 +6,7 @@ import {
 } from '../../scripts/classification-evaluation';
 import type { Prediction } from '../../src/features/classification/model';
 import { MODEL_DOWNLOAD_BYTES } from '../../src/features/classification/browser/assets';
+import { NORMALIZATION_REVISION } from '../../src/features/classification/browser/onnx-normalization';
 import {
   DOWNLOAD_TIMEOUT_MS,
   INFERENCE_TIMEOUT_MS,
@@ -32,6 +33,7 @@ const runButton = element<HTMLButtonElement>('run');
 const exportButton = element<HTMLButtonElement>('export');
 const cancelButton = element<HTMLButtonElement>('cancel');
 const rows = element('rows');
+element('model-revision').textContent = NORMALIZATION_REVISION;
 let worker: Worker | null = null;
 let runtimeStatus: BrowserRuntimeStatus | undefined;
 let adapter: unknown = null;
@@ -301,6 +303,7 @@ runButton.addEventListener(
         model: {
           repository: MODEL_REPO,
           revision: MODEL_REVISION,
+          normalizationRevision: NORMALIZATION_REVISION,
           downloadBytes: MODEL_DOWNLOAD_BYTES,
         },
         fixture: {
@@ -354,3 +357,6 @@ exportButton.addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 window.addEventListener('pagehide', () => stop('Page closed. GPU worker unloaded.'));
+import.meta.hot?.dispose(() =>
+  stop('Benchmark updated. GPU worker unloaded. Reload before running again.'),
+);

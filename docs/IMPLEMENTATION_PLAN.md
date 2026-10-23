@@ -67,3 +67,13 @@ The extension-owned offscreen worker uses packaged runtime code and downloads on
 - [x] Run formatting, lint, strict types, 247 unit/integration tests, production/preview/benchmark builds and ZIP inspection. Details: [validation](CLASSIFICATION_VALIDATION.md).
 - [ ] Execute real weights on supported GPUs and record quality, latency, memory and cancellation/idle behavior. This environment blocks Chromium launch and local benchmark server binding.
 - [ ] Resolve the fine-tuned model's license and pass a held-out evaluation before claiming production suitability. Live Gmail compatibility remains unverified.
+
+## Tev1 conversion repair
+
+The user's first actual GPU benchmark failed the quality gate: 12.5% straightforward accuracy and 89/96 predictions assigned to Recruiting. Investigation identified a missing `+1` on 61 zero-centered normalization scales in the third-party weight transplant.
+
+- [x] Correct only the verified normalization scale inputs of the pinned decoder graph; preserve gated norms, external weight files and existing cached downloads.
+- [x] Reject changed graph hashes, unexpected shapes, missing/duplicate norms, malformed protobuf and incorrect consumer bindings. A damaged graph can be redownloaded without discarding valid weights.
+- [x] Add numerical regression checks using the packaged ONNX runtime and an independent normalization reference, alongside actual pinned-graph/cache-path checks. Corrected maximum error `1.453656057748276e-7`; 273 unit/integration tests, type checks, lint, builds and ZIP inspection pass.
+- [x] Record `qwen-zero-centered-rmsnorm-v1` in browser benchmark output.
+- [ ] Rerun the unchanged synthetic screen with actual weights before claiming improved accuracy. This environment still blocks the benchmark server and Playwright startup.

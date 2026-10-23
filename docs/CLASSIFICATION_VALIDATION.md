@@ -28,11 +28,32 @@ Run the fixed synthetic screening set and inspect per-category confusion, ambigu
 
 Keep suggestions opt-in and reviewable until independent quality and supported-hardware performance results justify a broader claim. The Tev1 fine-tuned model card currently says its release license is pending finalization; resolve licensing before public distribution or production claims.
 
+## User-provided GPU result and conversion diagnosis
+
+After the initial review, the user supplied a completed 120-case browser run: zero runtime errors, 12/96 straightforward subjects correct (12.5%), macro F1 `0.029702970297029705`, and no predictions above the acceptance threshold. Recruiting received 89/96 straightforward predictions; the other seven were Work. The reported post-first-request median was `139.10000002384186` ms and p95 was `147` ms. These timings and outputs came from the user's run, not execution by this agent; the supplied excerpt did not include adapter/browser identity. This run failed the synthetic quality gate.
+
+Inspection found a numerical mismatch in the third-party model conversion. Qwen's zero-centered RMSNorm applies `normalized_x * (1 + weight)`; the conversion copies the raw weights into fused ONNX normalization scale inputs. The pinned decoder graph has no intervening addition. Exactly 61 scales are affected. The 18 gated DeltaNet norms use ordinary scales and must not receive the same correction. Earlier tokenizer, scoring and lifecycle tests did not establish source-to-export numerical parity.
+
+The repair validates the immutable decoder graph's hash and structure before inserting `+1` on those specific scale inputs. It leaves cached graph/weight bytes intact, so the user's existing download is reusable. The executable normalization check exercises the production graph-fetch path and compares ONNX normalization results to an independent numerical reference. The benchmark report records the correction revision. No corrected full-model accuracy is claimed until that benchmark actually runs.
+
+Correction checks executed in this checkout:
+
+- `pnpm check`: formatting, lint, strict types, **273 tests across 33 files**, and production build passed.
+- `pnpm check:browser-ai:normalization`: passed the actual pinned graph, production cache-fetch path and real packaged CPU execution on 61 synthetic normalization scales. Maximum corrected error was `1.453656057748276e-7`, compared with `1.4605933166247507` before repair. Both normalization operator types were exercised; the exempt gated scale and cached source were unchanged.
+- The corrected graph is 668,429 bytes; SHA-256 `f2e415be0de484d8155f0f95bdbfb9b03a1850ca4adbe23d7ef9e99cd9c6fdbd`. The regression check pins this exact output as well as its original source hash.
+- `pnpm check:browser-ai:tokenizer`: all 120 real-tokenizer contracts still passed, with model output stubbed. The prompt, categories and thresholds were not changed.
+- `pnpm test:classifier:browser:build` and `pnpm zip`: passed. ZIP inspection verified the repair is included, packaged runtime hashes match, files match the unpacked build, permissions are unchanged, and no model weights or development tests are included. ZIP size: 7,009,383 bytes; unpacked size: 28,304,704 bytes.
+- Starting `pnpm test:classifier:browser` was blocked by `listen EPERM` on `127.0.0.1:4174`. Playwright still exited with `SIGABRT`/`EPERM` during startup, before test bodies. No corrected full-model GPU, accuracy or live-Gmail result was produced here.
+
+Arithmetic results are saved in ignored `artifacts/browser-ai-normalization/report.json`. The correction adds graph constants in memory, without copying the large external weights or redownloading a valid existing cache. If the small cached graph fails its hash check, only that graph and the completion marker are evicted; retrying setup retains the large weight files.
+
+To rerun the user's benchmark, restart the local server with `pnpm test:classifier:browser`, reload `http://127.0.0.1:4174` and confirm the page says `qwen-zero-centered-rmsnorm-v1`. Check GPU, then choose **Run 120 synthetic fixtures**. Existing cached weights are reused. Keep both reports; do not treat an arithmetic regression as an improved classification score.
+
 ## Earlier implementation checks
 
 Before the WebGPU implementation, the local tag storage and UI passed 179 tests and a WXT build. Those historical checks do not validate the current packaged inference runtime.
 
-## Current browser implementation checks
+## Initial browser implementation checks
 
 Run on 2026-10-22 in the original checkout, branch `feat/local-classification`. Final review results:
 

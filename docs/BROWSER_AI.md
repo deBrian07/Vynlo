@@ -47,6 +47,18 @@ The preparation step stages a complete runtime and verifies it before replacing 
 
 Do not replace missing runtime files with dummy modules, CDN script imports, or a heuristic presented as Tev1. Production ZIPs with browser AI must contain the verified runtime assets. The runtime's default CDN WASM loading is overridden with packaged extension URLs; WASM cache factory rewriting is disabled, with a single WASM thread and no proxy worker.
 
+## Normalization correction
+
+The pinned third-party conversion copied Qwen's zero-centered RMSNorm weights into ONNX scale inputs without their required `+1`. Vynlo corrects exactly 61 verified scales: 48 layer input/post-attention norms, 12 attention query/key norms and the final norm. Gated DeltaNet norms use a different formula and are excluded.
+
+Before creating a decoder session, Vynlo checks the cached decoder graph's exact size and SHA-256, validates its expected initializer names, shapes and consumers, then inserts constant scale corrections. The original graph and external weight files remain unchanged in CacheStorage. Existing downloads can be reused; there is no new permission, remote inference or additional weight download. A changed or malformed graph fails closed. The repair is deterministic, versioned and applied only in memory to the pinned graph.
+
+Run `pnpm check:browser-ai:normalization` after the runtime has been prepared. This checks the real pinned graph through the production cache-fetch path and executes synthetic normalization graphs in the packaged ONNX runtime against an independent mathematical reference. It does not execute full Tev1 weights. The browser benchmark displays and exports the correction revision so corrected runs cannot be confused with older results. Reload an already-open benchmark page before rerunning the same 120 subjects; keep its existing model cache.
+
+This repairs model arithmetic, not evidence of email-classification accuracy. The user's original run completed with zero runtime errors but only 12/96 ordinary subjects correct. A corrected real-model run and then an independent held-out evaluation remain necessary before production use.
+
+Primary implementation references: [Qwen RMSNorm formula](https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen3_5/modeling_qwen3_5.py), [third-party transplant](https://github.com/raphaelmansuy/edgextract/blob/master/scripts/export_tev1_onnx.py) and [its initializer mapping](https://github.com/raphaelmansuy/edgextract/blob/master/scripts/tev1_onnx_weights.py).
+
 ## Model and privacy boundary
 
 The fixed model is [raphaelmansuy/tev1-0.8b-onnx-webgpu](https://huggingface.co/raphaelmansuy/tev1-0.8b-onnx-webgpu), pinned to revision:

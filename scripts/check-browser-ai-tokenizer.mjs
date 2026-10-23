@@ -16,6 +16,7 @@ await writeFile(
     `export { createBrowserEngine } from ${JSON.stringify(path.join(root, 'src/features/classification/browser/engine.ts'))};`,
     `export { TEXT_ASSETS, modelAssetUrl } from ${JSON.stringify(path.join(root, 'src/features/classification/browser/assets.ts'))};`,
     `export { MODEL_REVISION, MIN_GPU_BUFFER_BYTES } from ${JSON.stringify(path.join(root, 'src/features/classification/browser/model.ts'))};`,
+    `export { buildBenchmarkDecisionMessages, PROMPT_VARIANTS } from ${JSON.stringify(path.join(root, 'tests/browser-ai/prompt-candidates.ts'))};`,
   ].join('\n'),
 );
 await build({
@@ -29,8 +30,15 @@ await build({
     rollupOptions: { output: { entryFileNames: 'engine.mjs' } },
   },
 });
-const { createBrowserEngine, TEXT_ASSETS, modelAssetUrl, MODEL_REVISION, MIN_GPU_BUFFER_BYTES } =
-  await import(pathToFileURL(path.join(directory, 'code/engine.mjs')).href);
+const {
+  createBrowserEngine,
+  TEXT_ASSETS,
+  modelAssetUrl,
+  MODEL_REVISION,
+  MIN_GPU_BUFFER_BYTES,
+  buildBenchmarkDecisionMessages,
+  PROMPT_VARIANTS,
+} = await import(pathToFileURL(path.join(directory, 'code/engine.mjs')).href);
 const metadata = new Map();
 const names = ['config.json', 'tokenizer.json', 'tokenizer_config.json', 'chat_template.jinja'];
 for (const name of names) {
@@ -87,6 +95,7 @@ try {
 const priorLocation = globalThis.location;
 globalThis.location = { href: 'http://127.0.0.1:4174/contract-test' };
 const lengths = [];
+let variant = 'baseline';
 let forwards = 0;
 const model = Object.assign(
   async (inputs) => {
@@ -107,6 +116,7 @@ const model = Object.assign(
   },
 );
 const engine = createBrowserEngine({
+  buildMessages: (subject) => buildBenchmarkDecisionMessages(subject, variant),
   gpu: {
     requestAdapter: async () => ({
       features: new Set(['shader-f16']),
@@ -150,20 +160,35 @@ try {
     'utf8',
   );
   const fixture = JSON.parse(fixtureText);
-  for (const example of fixture.examples) await engine.infer(example.subject);
-  assert.equal(forwards, fixture.examples.length);
-  assert.ok(lengths.every((length) => length > 0 && length <= 768));
-  await assert.rejects(engine.infer('🐉'.repeat(250)), /token budget/);
-  assert.equal(forwards, fixture.examples.length);
+  const variants = {};
+  for (variant of PROMPT_VARIANTS) {
+    const offset = lengths.length;
+    for (const example of fixture.examples) await engine.infer(example.subject);
+    const measured = lengths.slice(offset);
+    assert.ok(measured.every((length) => length > 0 && length <= 768));
+    const completed = forwards;
+    await assert.rejects(engine.infer('🐉'.repeat(250)), /token budget/);
+    assert.equal(forwards, completed);
+    variants[variant] = {
+      examples: measured.length,
+      minimumTokens: Math.min(...measured),
+      maximumTokens: Math.max(...measured),
+      unicodeBudgetRejected: true,
+    };
+  }
+  assert.equal(forwards, fixture.examples.length * PROMPT_VARIANTS.length);
   const report = {
     evidence:
       'Real pinned tokenizer and template through production engine. GPU and model forward are stubbed. No accuracy measurement.',
     modelRevision: MODEL_REVISION,
     fixtureSha256: createHash('sha256').update(fixtureText).digest('hex'),
     examples: lengths.length,
+    uniqueSubjects: fixture.examples.length,
+    promptVariantCount: PROMPT_VARIANTS.length,
     minimumTokens: Math.min(...lengths),
     maximumTokens: Math.max(...lengths),
     unicodeBudgetRejected: true,
+    variants,
   };
   await writeFile(path.join(directory, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));

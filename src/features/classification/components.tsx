@@ -171,7 +171,10 @@ export function ClassificationSettings() {
       if (live.current) setBusy('');
     }
   };
-  const cached = runtime.state === 'cached' || runtime.state === 'ready';
+  const cached =
+    runtime.state === 'cached' ||
+    runtime.state === 'ready' ||
+    (runtime.totalBytes > 0 && runtime.downloadedBytes === runtime.totalBytes);
   const unsupported = runtime.state === 'unsupported';
   const downloading = busy === 'downloading';
   return (

@@ -21,20 +21,20 @@ Keep suggestions opt-in and reviewable until independent quality and supported-h
 
 ## Earlier implementation checks
 
-Before the WebGPU implementation, the Ollama-based tag storage and UI passed 179 tests and a WXT build. The Ollama runtime requirement has since been removed. Those historical checks do not validate the current packaged inference runtime. Current results should be appended below after running `pnpm check`, `pnpm test:e2e`, `pnpm zip` and inspecting the resulting package.
+Before the WebGPU implementation, the local tag storage and UI passed 179 tests and a WXT build. Those historical checks do not validate the current packaged inference runtime.
 
 ## Current browser implementation checks
 
 Run on 2026-10-22 in the original checkout, branch `feat/local-classification`:
 
-| Check | Result |
-| --- | --- |
-| `pnpm check` | Passed formatting, ESLint, strict TypeScript, 195 tests across 30 files, and production WXT build. |
-| `pnpm test:e2e` | Blocked before test bodies: all 14 launches of Playwright Chromium exited with `SIGABRT` and `EPERM` during browser startup. |
-| `pnpm zip` | Passed; produced `.output/vynlo-0.1.0-chrome.zip` (7.00 MB compressed; WXT reports 28.29 MB unpacked). |
-| ZIP inspection | Confirmed Manifest V3, offscreen permission, optional Hugging Face download hosts, and packaged inference HTML, JavaScript, WASM and runtime manifest. No broad tab/history/cookie permission. |
-| Runtime integrity | `node scripts/prepare-browser-ai.mjs --check` passed against all five packaged runtime/license files. |
-| Actual model/GPU | Not run. The environment could not launch Chromium, so it did not download Tev1 weights or inspect WebGPU. No latency, memory or accuracy result is claimed. |
-| Live Gmail | Not run. Fixture tests and UI tests are not live-Gmail compatibility evidence. |
+| Check             | Result                                                                                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check`      | Passed formatting, ESLint, strict TypeScript, 197 tests across 30 files, and production WXT build.                                                                                             |
+| `pnpm test:e2e`   | Blocked before test bodies: all 14 launches of Playwright Chromium exited with `SIGABRT` and `EPERM` during browser startup.                                                                   |
+| `pnpm zip`        | Passed; produced `.output/vynlo-0.1.0-chrome.zip` (7.00 MB compressed; WXT reports 28.29 MB unpacked).                                                                                         |
+| ZIP inspection    | Confirmed Manifest V3, offscreen permission, optional Hugging Face download hosts, and packaged inference HTML, JavaScript, WASM and runtime manifest. No broad tab/history/cookie permission. |
+| Runtime integrity | `node scripts/prepare-browser-ai.mjs --check` passed against all five packaged runtime/license files.                                                                                          |
+| Actual model/GPU  | Not run. The environment could not launch Chromium, so it did not download Tev1 weights or inspect WebGPU. No latency, memory or accuracy result is claimed.                                   |
+| Live Gmail        | Not run. Fixture tests and UI tests are not live-Gmail compatibility evidence.                                                                                                                 |
 
 The host printed a pnpm registry metadata DNS warning while running local commands, but the installed toolchain completed the checks. The packaged runtime preparation used the already verified local artifacts; the generated browser build did not contain a CDN runtime import.

@@ -134,11 +134,13 @@ describe('browser classification setup', () => {
     runtime = {
       ...runtime,
       state: 'unsupported',
+      downloadedBytes: 946_078_454,
+      totalBytes: 946_078_454,
       message: 'WebGPU is unavailable on this device.',
     };
     render(<ClassificationSettings />);
     expect(await screen.findByText('WebGPU is unavailable on this device.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Download model' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Check GPU availability' })).toBeEnabled();
     expect(screen.getByRole('checkbox', { name: /Enable local AI suggestions/ })).toBeDisabled();
     expect(client.prepare).not.toHaveBeenCalled();
   });

@@ -189,6 +189,7 @@ export function createBrowserEngine(
       });
       throw new Error(current.message);
     }
+    if (current.state === 'unsupported') emit(await assets.status());
     return { available: true as const };
   };
   const ensureReady = async (signal?: AbortSignal) => {

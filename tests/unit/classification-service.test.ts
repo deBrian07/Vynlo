@@ -298,6 +298,17 @@ describe('local classification worker', () => {
     ).toBe(false);
     expect(f.platform.check).not.toHaveBeenCalled();
   });
+  it('returns the safe WebGPU support reason so settings can explain how to recover', async () => {
+    const f = fixture();
+    vi.mocked(f.platform.check!).mockRejectedValue(
+      new Error('Local AI needs WebGPU with shader-f16 support. Try an updated Chrome browser.'),
+    );
+    const response = await f.service.handle({ type: 'classify-check' }, extension);
+    expect(response).toEqual({
+      ok: false,
+      error: 'Local AI needs WebGPU with shader-f16 support. Try an updated Chrome browser.',
+    });
+  });
   it('does not save an enabled configuration until the installed local model is checked', async () => {
     const f = fixture({ enabled: false, automatic: false });
     vi.mocked(f.platform.check!).mockRejectedValueOnce(new Error('sensitive data'));

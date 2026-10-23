@@ -128,12 +128,9 @@ export function createClassificationService({
   const check = async () => {
     if (!(await platform.hasPermission()))
       throw new Error('Allow model download access in Vynlo settings first.');
-    try {
-      if (!platform.check) throw new Error(setupError);
-      return await platform.check();
-    } catch {
-      throw new Error(setupError);
-    }
+    if (!platform.check) throw new Error(setupError);
+    // The bridge returns fixed, user-safe WebGPU errors. Preserve those details for recovery.
+    return platform.check();
   };
   const classify = async (ref: ConversationRef, automatic: boolean) => {
     const startedEpoch = epoch;
@@ -343,6 +340,7 @@ export function createClassificationService({
       const allowed = [
         setupError,
         cancelled,
+        'Local AI needs WebGPU with shader-f16 support. Try an updated Chrome browser.',
         'Allow model download access in Vynlo settings first.',
         'Enable local suggestions in Vynlo settings first.',
         'This conversation has too little subject context. Choose a tag manually.',

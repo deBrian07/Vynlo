@@ -106,6 +106,14 @@ describe('browser decision engine (mocked GPU/runtime, not a model-quality bench
     expect(f.assets.download).not.toHaveBeenCalled();
     expect(f.loadRuntime).not.toHaveBeenCalled();
   });
+  it('clears a previous unsupported state when WebGPU becomes available', async () => {
+    const f = fixture();
+    f.gpu.requestAdapter.mockResolvedValueOnce(null);
+    await expect(f.engine.check()).rejects.toThrow('WebGPU');
+    expect((await f.engine.status()).state).toBe('unsupported');
+    await f.engine.check();
+    expect((await f.engine.status()).state).toBe('cached');
+  });
   it('loads once, reuses the session, then releases it after idle', async () => {
     vi.useFakeTimers();
     const f = fixture();

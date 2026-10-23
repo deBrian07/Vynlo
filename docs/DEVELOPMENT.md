@@ -34,7 +34,7 @@ When fixing an adapter regression, first add a minimal synthetic fixture reprodu
 
 Only the extension service worker may access structured storage. Do not open a database from Gmail's content-script execution environment. Keep requests in `src/types/messages.ts` and runtime checks in `src/services/validation.ts` aligned.
 
-Database and JSON backup schemas both start at version 1. Export includes all five record collections and settings. Import rejects unsupported schema versions, duplicate IDs, invalid links and broken relationships. Valid records merge by ID without overwriting local records; settings are replaced through the journaled path. Changing that policy requires an explicit user-facing migration design.
+Database version 2 adds account-scoped `emailTags` while preserving version-one stores. JSON backup schema version 1 supports optional `emailTags` for older backups. Export includes six record collections and settings. Import validates versions, IDs, links and relationships; records merge by ID without overwriting local records, and settings use the journaled replacement path. AI consent and model files are excluded from backups; import pauses AI. Changing the merge policy requires an explicit migration design.
 
 ## Diagnostics
 

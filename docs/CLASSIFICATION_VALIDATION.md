@@ -6,10 +6,19 @@ Validation is split into software behavior, browser execution and classification
 
 - The Tev1 model repository, immutable revision, file sizes and LFS hashes are pinned in `src/features/classification/browser/assets.ts`.
 - Model files download only after a user action and a Chrome host permission prompt. Inference uses cached files only; the runtime cannot make a model-host request with a subject.
-- Unit tests exercise cache completion, truncation, cancellation, allowed redirect hosts, the runtime worker bridge, account-scoped tags, conservative review handling, and unsupported GPU behavior.
-- Engine tests use mocked WebGPU, tokenizers and model outputs. They verify prompt limits, one-forward eight-choice scoring, tensor cleanup and lifecycle behavior. They do not run Tev1 weights.
+- Unit tests exercise cache completion, truncation, cancellation, compressed downloads, storage limits, allowed redirect hosts, the runtime worker bridge, account-scoped tags, conservative review handling, and unsupported GPU behavior.
+- Engine tests use mocked WebGPU, tokenizers and model outputs. They verify all eight category mappings with noncontiguous token IDs, float16 decoding, stable softmax with extreme logits, invariance to score offsets, tied decisions, prompt limits, one-forward scoring, tensor cleanup and lifecycle behavior. They do not run Tev1 weights.
+- The real packaged tokenizer and standalone template process all 120 synthetic subjects through the production engine. Forward execution is explicitly stubbed. This verifies the pinned asset URLs, tokenizer/template integration, 267–281-token prompts, and rejection of an oversized Unicode input; it produces no accuracy score.
+- The actual packaged ONNX runtime executes a tiny Identity graph under Node with JavaScript string compilation disabled. Its real float16 tensor conversion is checked. This verifies CPU runtime packaging, not Tev1 or the WebGPU/CSP execution path.
+- Consent tests cover concurrent enable/pause/removal, corrupted model scores, late inference completions and actual background routing for import, clear-data and disabled enhancements. Offscreen tests cover active-job heartbeats and cleanup; bridge tests cover delayed handshakes, cancelled creation, stale ports, worker recovery and asynchronous setup.
 - Browser tests use local Gmail fixtures. They do not prove compatibility with every Gmail layout.
-- A real Playwright Chromium startup was attempted but this environment's browser process aborted with a macOS Mach-port rendezvous error before page creation. No actual WebGPU adapter or model inference was exercised here.
+- Playwright Chromium startup exited with `SIGABRT` and `EPERM` before page creation. The local real-model benchmark server was also blocked by `listen EPERM` at `127.0.0.1:4174`. No actual WebGPU adapter or model inference was exercised here.
+
+## Fixed during this review
+
+The actual tokenizer exposed two defects that mocks missed: its configuration does not contain a chat template, and upstream tokenizer-file discovery drops the requested model revision. The engine now loads the pinned standalone template and pins URL construction as well as model-loading options. Raw float16 logits are converted before scoring, avoiding decisions based on their unsigned integer bit patterns.
+
+Setup now checks the packaged runtime and the model's minimum GPU buffer limits before the 946 MB download, survives reopening settings, and returns immediately while work continues through short progress requests. Only active offscreen jobs send heartbeats; cancellation, timeouts, failed sessions and stale worker ports release or restart resources. Configuration writes are serialized so pausing, removing or importing data cannot be undone by an older enable request.
 
 ## Production evidence still needed
 
@@ -25,16 +34,20 @@ Before the WebGPU implementation, the local tag storage and UI passed 179 tests 
 
 ## Current browser implementation checks
 
-Run on 2026-10-22 in the original checkout, branch `feat/local-classification`:
+Run on 2026-10-22 in the original checkout, branch `feat/local-classification`. Final review results:
 
-| Check             | Result                                                                                                                                                                                         |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm check`      | Passed formatting, ESLint, strict TypeScript, 197 tests across 30 files, and production WXT build.                                                                                             |
-| `pnpm test:e2e`   | Blocked before test bodies: all 14 launches of Playwright Chromium exited with `SIGABRT` and `EPERM` during browser startup.                                                                   |
-| `pnpm zip`        | Passed; produced `.output/vynlo-0.1.0-chrome.zip` (7.00 MB compressed; WXT reports 28.29 MB unpacked).                                                                                         |
-| ZIP inspection    | Confirmed Manifest V3, offscreen permission, optional Hugging Face download hosts, and packaged inference HTML, JavaScript, WASM and runtime manifest. No broad tab/history/cookie permission. |
-| Runtime integrity | `node scripts/prepare-browser-ai.mjs --check` passed against all five packaged runtime/license files.                                                                                          |
-| Actual model/GPU  | Not run. The environment could not launch Chromium, so it did not download Tev1 weights or inspect WebGPU. No latency, memory or accuracy result is claimed.                                   |
-| Live Gmail        | Not run. Fixture tests and UI tests are not live-Gmail compatibility evidence.                                                                                                                 |
+| Check                             | Result                                                                                                                                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check`                      | Passed formatting, ESLint, strict TypeScript, 247 tests across 32 files, and production WXT build.                                                                                             |
+| `pnpm test:e2e --max-failures=1`  | Blocked in browser launch before the first test body: Chromium exited with `SIGABRT` and `EPERM`; 13 remaining tests did not run. Earlier attempts were blocked the same way.                  |
+| `pnpm zip`                        | Passed; produced `.output/vynlo-0.1.0-chrome.zip` (7,005,959 bytes; 28,295,195 bytes unpacked).                                                                                                |
+| ZIP inspection                    | Confirmed Manifest V3, offscreen permission, optional Hugging Face download hosts, and packaged inference HTML, JavaScript, WASM and runtime manifest. No broad tab/history/cookie permission. |
+| `pnpm check:browser-ai`           | Passed all five runtime/license hashes, a clean archive-only rebuild with networking disabled, actual ONNX Identity inference and actual float16 conversion.                                   |
+| `pnpm check:browser-ai:tokenizer` | Passed the real tokenizer/template contract on all 120 subjects; GPU/model outputs stubbed. Fixture SHA-256: `c381577bf27cd4a8e4f540036b2d6971d55bbe8cb5a6fb5a8947c20e51da2841`.               |
+| Browser harness builds            | `pnpm test:classifier:browser:build` and `pnpm preview:build` passed. Building is not execution.                                                                                               |
+| Actual model/GPU                  | Not run. The environment could not launch Chromium, so it did not download Tev1 weights or inspect WebGPU. No latency, memory or accuracy result is claimed.                                   |
+| Live Gmail                        | Not run. Fixture tests and UI tests are not live-Gmail compatibility evidence.                                                                                                                 |
 
-The host printed a pnpm registry metadata DNS warning while running local commands, but the installed toolchain completed the checks. The packaged runtime preparation used the already verified local artifacts; the generated browser build did not contain a CDN runtime import.
+The host printed a pnpm registry metadata DNS warning while running local commands, but the installed toolchain completed the checks. Runtime preparation used verified pinned archives. No model weights were downloaded. The tokenizer contract report is saved in ignored `artifacts/browser-ai-tokenizer/report.json`; runtime smoke results are printed to the terminal.
+
+To obtain real model-quality evidence on a supported device, run `pnpm test:classifier:browser`, open `http://127.0.0.1:4174`, check the GPU, download the model and run the 120 synthetic cases. Export the report. The harness uses the production engine with actual weights, reports failures and measured timings, and never substitutes a prediction. This does not replace extension/offscreen tests or a separately labeled held-out evaluation.

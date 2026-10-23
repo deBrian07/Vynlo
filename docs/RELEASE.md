@@ -7,6 +7,8 @@ Vynlo 0.1 is a compatibility preview. A successful build does not remove the liv
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
+pnpm check:browser-ai
+pnpm check:browser-ai:tokenizer
 pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm zip
@@ -31,7 +33,8 @@ CI validates source and creates a build artifact. The workflow does not publish 
 - [ ] Verify the supported account/thread path is practical for intended users; do not ship a misleading primary tracking promise.
 - [ ] Test pending reminders after worker/browser restart, due dashboard recovery, notification denial, snooze and resolve.
 - [ ] Review import/export, account isolation, clearing data and corrupted-input behavior.
-- [ ] Inspect the generated manifest: only `storage`, `alarms`, `notifications`; Gmail-only content matches; no development server access or remote code.
+- [ ] Inspect the generated manifest: `storage`, `alarms`, `notifications`, `offscreen`; Gmail-only content matches; optional Hugging Face model-download hosts only; no remote executable code.
+- [ ] Run and record actual WebGPU classification quality, timing and resource measurements; resolve fine-tuned weight licensing before public release. See [browser AI](BROWSER_AI.md).
 - [ ] Inspect ZIP structure and load that exact artifact in a fresh Chrome profile.
 - [ ] Review dependencies and bundled code for unapproved network use and secret/user-data leakage.
 - [ ] Record bundle sizes and any performance measurements without claiming unmeasured improvements.
@@ -53,7 +56,7 @@ CI validates source and creates a build artifact. The workflow does not publish 
 
 Vynlo adds a local productivity panel to Gmail. Mark a supported conversation Needs Reply, Waiting, Follow Up or Resolved, then review your next steps in one dashboard. Set a reminder, save a contact note or insert a snippet you wrote into your draft.
 
-Your Vynlo records stay in your browser profile. There is no Vynlo account, subscription, cloud service, AI provider or advertising. Data is exportable as JSON. Local storage and exported files are not encrypted by Vynlo.
+Your Vynlo records stay in your browser profile. There is no Vynlo account, subscription, hosted inference service or advertising. Optional AI downloads model files from Hugging Face, then processes subjects locally in Chrome. Data is exportable as JSON. Local storage and exported files are not encrypted by Vynlo.
 
 Tracking is manual. Vynlo does not detect replies or send email. Desktop reminders depend on Chrome and operating-system availability; due items stay visible in the dashboard. The compatibility preview supports corroborated legacy routes and a restricted modern opaque thread format. Ambiguous, draft and unsupported routes disable tracking. Check the published compatibility guide before installation.
 
@@ -66,6 +69,8 @@ Publish this draft only after filling the support/privacy links and validating t
 | `storage`                   | Save local preferences and coordinate extension views. Structured user records use extension-owned IndexedDB.          |
 | `alarms`                    | Wake the extension to process scheduled follow-up reminders and recover overdue work.                                  |
 | `notifications`             | Show optional generic desktop reminders requested by the user.                                                         |
+| `offscreen`                 | Run optional local AI in one extension-owned worker and release it when idle.                                          |
+| Optional Hugging Face hosts | Download fixed model files only after explicit setup; email subjects are not sent to these hosts.                      |
 | Gmail content-script access | Display controls in Gmail, identify the supported current account/thread and insert requested plain text into a draft. |
 
 The extension handles account/contact email addresses, minimal communication references, user-authored notes/snippets, dates and settings. It does not transmit these to Vynlo or an analytics provider. Do not describe the product as handling no user data merely because processing is local. The current implementation has no browsing-history collection, credentials, OAuth tokens, mailbox body archive, tracking pixels, remote code or automatic sending.

@@ -6,9 +6,9 @@ This path is experimental. Software tests do not establish Tev1's email accuracy
 
 ## Using it
 
-Open Vynlo settings and choose the browser AI setup action. Vynlo checks whether Chrome exposes a suitable WebGPU adapter before loading the model. Approve the model download explicitly; it is roughly **947 MB** for the text model and tokenizer, excluding runtime files and browser overhead. The first setup can take time depending on the connection and shader compilation. Subsequent use reuses the browser's model cache when available.
+Open Vynlo settings and choose **Download model**. Vynlo checks the packaged runtime and GPU support before downloading **946,078,454 bytes** of model and tokenizer files (about 946 MB), excluding browser overhead. The first setup can take time depending on the connection and shader compilation. Subsequent use reuses cached files. Reopening settings resumes the progress display and cancellation controls. If download access was revoked, **Allow model access** restores it without removing cached files.
 
-The GPU must support `shader-f16`. M-series Macs can provide GPU acceleration through Chrome's WebGPU implementation, but Vynlo checks the actual adapter rather than assuming support from the computer model. Hardware acceleration, browser policy, available memory, and the browser version affect availability. There is no automatic CPU fallback: unexpectedly running this model on the CPU could consume too much time and energy.
+The GPU must support `shader-f16` and buffer/storage-binding limits of at least **508,559,360 bytes**. The pinned embedding graph contains a single `[248320, 1024]` float16 table that ONNX Runtime binds as one buffer. Preflight rejects smaller limits before a large download. Passing this check does not establish that enough total GPU memory is free. M-series Macs may provide WebGPU acceleration; actual browser/adapter support is checked. There is no automatic CPU fallback.
 
 Enable suggestions separately after setup. Automatic suggestions, if enabled, apply only to supported conversations as you open them. Vynlo classifies the subject, never scans the whole mailbox, and does not change Gmail's labels. Suggestions remain reviewable; manual corrections are preserved.
 
@@ -18,21 +18,23 @@ Turning off browser AI cancels pending work and releases the model worker. Cache
 
 The browser path uses a dedicated worker in a single offscreen extension document so inference does not run on Gmail's main thread. It loads only the text embedding and quantized decoder sessions, without the vision encoder. Each classification scores eight option letters in one forward pass rather than generating an email response.
 
-The implementation caps tokenized prompts at 768 tokens, runs one inference at a time, and bounds the queue. It releases the worker after 30 seconds of inactivity. An inference exceeding 8 seconds or a model load exceeding 120 seconds resets the worker; cancellation also terminates the worker. These are resource safeguards, not claims about normal latency. No background mailbox polling or unattended model download occurs.
+The implementation caps tokenized prompts at 768 tokens and runs one inference at a time without queuing subjects. It releases the worker after 30 seconds of inactivity. Forward execution has an 8-second deadline, model loading 120 seconds, and explicit downloading 10 minutes; exceeding a deadline resets the worker. Cancellation also terminates it. These are resource safeguards, not claims about normal latency. Loading time and tokenization/scoring time are reported separately. No background mailbox polling or unattended model download occurs.
+
+Setup starts as an asynchronous job followed through short status requests, so one Chrome message is not held open for the whole download. Only active jobs send service-worker heartbeats. Completed files survive an interrupted download and can be reused on retry; browser shutdown or worker termination can still stop setup.
 
 Model file size is not peak RAM or GPU memory. Loading may temporarily allocate downloaded buffers, ONNX Runtime memory, GPU weights, and intermediate tensors at the same time. Measure peak memory and repeated-use latency on the target device before approving a release.
 
 ## Preparing a development build
 
-Executable runtime files must be packaged with the extension. A developer prepares them once:
+Development, production builds and ZIP packaging prepare the executable runtime automatically. Additional checks are explicit:
 
 ```sh
-node scripts/prepare-browser-ai.mjs
-node scripts/prepare-browser-ai.mjs --check
 pnpm build
+pnpm check:browser-ai
+pnpm check:browser-ai:tokenizer
 ```
 
-The preparation script installs the pinned runtime in `artifacts/browser-ai-deps`, without changing the root package manifest or lockfile, then bundles its browser entry with the repository's Vite. If npm installation fails, it can use three browser-only upstream package archives with pinned SHA-512 integrity checks; this avoids downloading native inference dependencies. It copies the matching ONNX Runtime asyncify factory, WASM binary, and licenses into `public/inference-runtime`. It does not download model weights. The generated manifest records file sizes and SHA-256 hashes for packaging verification; hashes detect changed packaged files, not the trustworthiness or accuracy of the model.
+The preparation script downloads three exact browser package archives into `artifacts/browser-ai-deps`, verifies their SHA-512 integrity, and extracts only reviewed browser files. It does not install native inference/image dependencies or resolve a second dependency tree. It bundles the browser entry with Vite and copies the matching WASM factory, binary and licenses into `public/inference-runtime`. Model weights are excluded. The generated manifest records sizes and SHA-256 hashes; checks verify packaging, not model quality.
 
 Prepared dependencies:
 
@@ -63,13 +65,21 @@ The public model card reports roughly 509 MB for embedding weights, 424 MB for d
 
 Only static model asset downloads contact Hugging Face and its file delivery infrastructure. Email subjects are processed locally and must never be included in remote URLs, headers, or request bodies. Runtime JavaScript and WASM are packaged, not downloaded as executable code at use time. Model weights are cached under the extension origin, not Gmail's origin. User-created tag records remain in the service worker's account-scoped database.
 
+Model downloads validate their pinned URL, approved HTTPS delivery hosts and exact decoded byte counts. The listed LFS hashes are reference metadata; the browser does not currently compute a streaming content digest for the weight files. Archive/runtime integrity checks are separate. Local browser-profile compromise is outside this protection boundary.
+
 Local processing does not encrypt local storage. The model can make mistakes, especially with vague subjects, mixed topics, prompt injection, or unfamiliar languages. A concentrated score over eight options is not a calibrated probability that the chosen category is correct.
 
 ## Validation in this environment
 
-The actual pinned runtime archives were downloaded and verified against the npm registry's SHA-512 integrity values. The preparation script successfully bundled them; its `--check` verified all five packaged runtime and license files against the generated SHA-256 manifest. npm itself failed DNS resolution, so the verified browser-only archive route was used.
+`pnpm check:browser-ai` verifies the five packaged runtime/license files, rebuilds from the pinned archives in an empty directory with network access disabled, and executes a tiny real ONNX Identity graph with JavaScript string compilation disabled. It also checks real float16 tensor conversion. This is CPU packaging evidence, not Tev1 or WebGPU execution.
 
-A minimal Playwright browser launch was attempted. Chromium exited during startup with a macOS Mach-port rendezvous error before a page or GPU adapter could be inspected. This is a browser execution blocker; no GPU inference latency, peak memory, or Tev1 classification accuracy result follows from the packaging checks.
+`pnpm check:browser-ai:tokenizer` downloads about 13 MB of pinned tokenizer metadata on first use. It runs all 120 synthetic subjects through the real tokenizer/template and production engine with GPU/model forward explicitly stubbed. The measured prompts use 267–281 tokens; an over-budget Unicode subject is rejected. It caught the missing standalone template and an upstream tokenizer discovery request that omitted the revision. The runtime URL template now pins every discovery/model read to the immutable revision. This check produces no classification-accuracy score.
+
+A Playwright browser launch aborted before page creation. Starting the local GPU benchmark server was also blocked by `listen EPERM` on `127.0.0.1:4174`. No GPU inference latency, peak memory or Tev1 classification accuracy is claimed for this environment.
+
+## Run the actual classification screen
+
+Run `pnpm test:classifier:browser` and open `http://127.0.0.1:4174` in a supported Chrome browser. Check GPU support, explicitly download the model, then run the 120 synthetic cases. The harness uses the production engine and real weights, stops on runtime failures/timeouts, and exports actual decisions, confusion/quality metrics, timings, model revision, fixture hash and available adapter details. Cancel/unload and delete-cache controls are included. No model result is invented when execution is unavailable. This localhost harness does not validate the extension's offscreen integration or live Gmail.
 
 ## Release requirements
 

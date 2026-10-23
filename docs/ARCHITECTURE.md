@@ -23,7 +23,7 @@ An account namespace is its normalized email address, never the numeric `/u/0` s
 
 Conversation IDs combine account email and thread ID. Contact IDs combine account email and contact email. A reminder uses a deterministic ID derived from its conversation, giving each conversation one current reminder. Snippets use random UUIDs and are intentionally shared across accounts in the same browser profile.
 
-All structured writes run in the service worker's extension origin. Database version 1 contains `accounts`, `conversations`, `reminders`, `contacts`, `snippets` and a `metadata` journal store. Account-scoped tables have account indexes, and reminders have a conversation index. The initial migration creates missing stores without deleting existing data. Future schema changes must increment the version and preserve older records.
+All structured writes run in the service worker's extension origin. Database version 2 contains `accounts`, `conversations`, `reminders`, `contacts`, `snippets`, `emailTags` and a `metadata` journal store. Account-scoped tables have account indexes, and reminders have a conversation index. Migration creates missing stores without deleting existing data. Future schema changes must increment the version and preserve older records.
 
 Requests are serialized within a worker instance. IndexedDB transactions enforce atomic record changes. Current reads load the local record collections before filtering; the indexes leave room for targeted queries, but large imported workspaces will still incur full-snapshot costs.
 

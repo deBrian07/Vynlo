@@ -53,3 +53,17 @@ The original Ollama integration has been replaced by an optional, default-off Ch
 ## Browser GPU classification
 
 The extension-owned offscreen worker uses packaged runtime code and downloads only pinned model data after explicit consent. It uses one text-only quantized session, bounded input and candidate scoring in one forward pass, no CPU fallback, no inference queue and a 30-second idle unload. Keep download, GPU loading and measured inference timing distinct in the interface. Actual WebGPU/model execution remains required before performance or accuracy claims.
+
+## Browser classification review
+
+- [x] Verify the real pinned tokenizer/template contract; fix standalone template loading and revision-less upstream discovery.
+- [x] Decode float16 logits and test all category/token mappings, tied/invalid/extreme scores, token budgets and resource cleanup.
+- [x] Check minimum GPU buffer limits and packaged runtime before download; check storage capacity and interrupted/compressed files.
+- [x] Make setup asynchronous, recover its progress in settings, and support cancellation and permission restoration.
+- [x] Harden worker handshakes, stale ports, phase deadlines, active-operation heartbeats and failed-session recovery.
+- [x] Serialize consent changes; prevent classification during pause, removal, clear-data and import, including concurrent tabs.
+- [x] Build the runtime from three verified archives without a second dependency installation; exercise actual CPU ONNX and float16 behavior.
+- [x] Add a real WebGPU synthetic benchmark and exportable quality/runtime reports; add tokenizer/runtime checks to CI.
+- [x] Run formatting, lint, strict types, 247 unit/integration tests, production/preview/benchmark builds and ZIP inspection. Details: [validation](CLASSIFICATION_VALIDATION.md).
+- [ ] Execute real weights on supported GPUs and record quality, latency, memory and cancellation/idle behavior. This environment blocks Chromium launch and local benchmark server binding.
+- [ ] Resolve the fine-tuned model's license and pass a held-out evaluation before claiming production suitability. Live Gmail compatibility remains unverified.

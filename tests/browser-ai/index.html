@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vynlo · browser AI evaluation</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+        color: #dce7ee;
+        background: #111b27;
+      }
+      body {
+        margin: 0;
+        padding: 32px 20px;
+      }
+      main {
+        max-width: 1000px;
+        margin: auto;
+      }
+      h1 {
+        margin-bottom: 8px;
+        font-size: 28px;
+      }
+      p {
+        max-width: 86ch;
+        line-height: 1.6;
+        color: #b6c6d2;
+      }
+      section {
+        border: 1px solid #354453;
+        padding: 20px;
+        border-radius: 14px;
+        margin-top: 20px;
+        background: #16222f;
+      }
+      button {
+        font: inherit;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid #4c6374;
+        background: #213443;
+        color: #eef7fa;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      button:focus-visible {
+        outline: 3px solid #64ccc1;
+        outline-offset: 3px;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      #cancel {
+        margin-left: auto;
+      }
+      #status {
+        color: #7fddd0;
+        min-height: 1.6em;
+        white-space: pre-wrap;
+      }
+      progress {
+        width: 100%;
+        accent-color: #64ccc1;
+      }
+      pre {
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      code {
+        font-size: 0.95em;
+      }
+      summary {
+        cursor: pointer;
+      }
+      .table-wrap {
+        overflow: auto;
+        max-height: 430px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid #354453;
+        vertical-align: top;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: #16222f;
+      }
+      .pass {
+        color: #7fddd0;
+      }
+      .fail {
+        color: #ffb4a8;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Browser AI evaluation</h1>
+      <p>
+        Run the actual Vynlo Tev1 WebGPU engine against 120 synthetic email subjects. No real
+        mailbox data is used. Passing this screen does not establish production accuracy.
+      </p>
+      <section aria-label="Evaluation controls">
+        <p>
+          <strong>Model download: 946,078,454 bytes (946 MB).</strong> Executable runtime files are
+          served locally. Downloaded weights stay in this localhost browser profile, separate from
+          the extension cache. GPU checks do not download model files. No CPU fallback is used.
+        </p>
+        <div class="actions">
+          <button id="check" type="button">Check GPU</button>
+          <button id="download" type="button">Download pinned model · 946 MB</button>
+          <button id="run" type="button">Run 120 synthetic fixtures</button>
+          <button id="cancel" type="button">Cancel / unload</button>
+          <button id="clear-cache" type="button">Delete benchmark model cache</button>
+        </div>
+        <p id="status" role="status" aria-live="polite">
+          Ready. Choose Check GPU to inspect this browser without downloading a model.
+        </p>
+        <progress id="progress" value="0" max="120" aria-label="Evaluation progress"></progress>
+        <pre id="device">No device checked yet.</pre>
+      </section>
+      <section aria-label="Results">
+        <div class="actions">
+          <h2 style="margin: 0">Results</h2>
+          <button id="export" type="button" disabled>Export JSON report</button>
+        </div>
+        <p id="summary">No inference has run.</p>
+        <details>
+          <summary>Metrics and runtime details</summary>
+          <pre id="metrics">No report yet.</pre>
+        </details>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Fixture</th>
+                <th scope="col">Expected</th>
+                <th scope="col">Predicted</th>
+                <th scope="col">Forward time</th>
+                <th scope="col">Result</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <p>
+        Limits: one inference at a time, 768 prompt tokens, 8 seconds per ready forward pass, 120
+        seconds for cold model loading, 10 minutes for download and preparation. Cancel terminates
+        the worker. Device memory reporting is approximate when Chrome exposes it; GPU memory is not
+        measured.
+      </p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

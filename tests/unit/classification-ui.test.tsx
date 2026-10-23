@@ -136,15 +136,17 @@ describe('browser classification setup', () => {
       state: 'unsupported',
       downloadedBytes: 946_078_454,
       totalBytes: 946_078_454,
+      modelCached: true,
       message: 'WebGPU is unavailable on this device.',
     };
     render(<ClassificationSettings />);
     expect(await screen.findByText('WebGPU is unavailable on this device.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Check GPU availability' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Allow model access' })).toBeEnabled();
     expect(screen.getByRole('checkbox', { name: /Enable local AI suggestions/ })).toBeDisabled();
     expect(client.prepare).not.toHaveBeenCalled();
   });
   it('checks a cached model without requesting download access again', async () => {
+    status.permission = true;
     runtime = { ...runtime, state: 'cached' };
     render(<ClassificationSettings />);
     const check = await screen.findByRole('button', { name: 'Check GPU availability' });
@@ -158,6 +160,7 @@ describe('browser classification setup', () => {
     expect(client.configure).not.toHaveBeenCalled();
   });
   it('keeps suggestions off when GPU checks fail', async () => {
+    status.permission = true;
     runtime = { ...runtime, state: 'cached' };
     client.check.mockRejectedValue(new Error('Not enough GPU memory. Manual tags still work.'));
     render(<ClassificationSettings />);
@@ -166,14 +169,12 @@ describe('browser classification setup', () => {
     expect(screen.getByRole('checkbox', { name: /Enable local AI suggestions/ })).toBeDisabled();
     expect(client.configure).not.toHaveBeenCalled();
   });
-  it('polls progress only during download and stops after unmounting', async () => {
-    let finish!: (value: BrowserRuntimeStatus) => void;
-    client.prepare.mockReturnValue(
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-    );
-    const view = render(<ClassificationSettings />);
+  it('polls setup after a prompt prepare response and stops at completion', async () => {
+    client.prepare.mockImplementation(async () => {
+      runtime = { state: 'downloading', downloadedBytes: 0, totalBytes: 947_000_000 };
+      return runtime;
+    });
+    render(<ClassificationSettings />);
     const download = screen.getByRole('button', { name: 'Download model' });
     await waitFor(() => expect(download).toBeEnabled());
     vi.useFakeTimers();
@@ -181,6 +182,8 @@ describe('browser classification setup', () => {
       await act(async () => {
         fireEvent.click(download);
       });
+      expect(screen.getByRole('button', { name: 'Cancel and release GPU' })).toBeEnabled();
+      expect(screen.queryByRole('button', { name: 'Download model' })).not.toBeInTheDocument();
       runtime = { state: 'downloading', downloadedBytes: 100_000_000, totalBytes: 947_000_000 };
       await act(async () => {
         await vi.advanceTimersByTimeAsync(750);
@@ -190,18 +193,131 @@ describe('browser classification setup', () => {
         '100000000',
       );
       expect(screen.getByText('Downloading model · 100 MB of 947 MB')).toBeVisible();
-      view.unmount();
+      runtime = { ...runtime, state: 'loading', modelCached: true };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(750);
+      });
+      expect(screen.getByText('Loading model on your GPU…')).toBeVisible();
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      runtime = { ...runtime, state: 'ready' };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(750);
+      });
+      expect(screen.getByRole('checkbox', { name: /Enable local AI suggestions/ })).toBeEnabled();
       const count = client.browserStatus.mock.calls.length;
       await act(async () => {
         await vi.advanceTimersByTimeAsync(3000);
       });
       expect(client.browserStatus).toHaveBeenCalledTimes(count);
-      finish({ ...runtime, state: 'ready' });
-      await act(async () => {});
-      expect(client.configure).not.toHaveBeenCalled();
+      expect(client.prepare).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
+  });
+  it('resumes setup progress and cancellation after remounting settings', async () => {
+    runtime = {
+      state: 'loading',
+      downloadedBytes: 946_078_454,
+      totalBytes: 946_078_454,
+      modelCached: true,
+    };
+    vi.useFakeTimers();
+    try {
+      const view = render(<ClassificationSettings />);
+      await act(async () => {});
+      expect(screen.getByText('Loading model on your GPU…')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Cancel and release GPU' })).toBeEnabled();
+      expect(client.prepare).not.toHaveBeenCalled();
+      runtime = { ...runtime, state: 'error', message: 'Model setup failed. Please retry.' };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(750);
+      });
+      expect(screen.getByRole('alert')).toHaveTextContent('Model setup failed');
+      const count = client.browserStatus.mock.calls.length;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      expect(client.browserStatus).toHaveBeenCalledTimes(count);
+      view.unmount();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      expect(client.browserStatus).toHaveBeenCalledTimes(count);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('stops active setup polling when settings unmount', async () => {
+    runtime = { state: 'downloading', downloadedBytes: 1, totalBytes: 946_078_454 };
+    vi.useFakeTimers();
+    try {
+      const view = render(<ClassificationSettings />);
+      await act(async () => {});
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(750);
+      });
+      expect(client.browserStatus).toHaveBeenCalledTimes(2);
+      view.unmount();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      expect(client.browserStatus).toHaveBeenCalledTimes(2);
+      expect(client.release).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('ignores stale setup status after cancellation', async () => {
+    runtime = { state: 'downloading', downloadedBytes: 1, totalBytes: 946_078_454 };
+    let finish!: (value: BrowserRuntimeStatus) => void;
+    vi.useFakeTimers();
+    try {
+      render(<ClassificationSettings />);
+      await act(async () => {});
+      client.browserStatus.mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(750);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel and release GPU' }));
+      });
+      await act(async () => {
+        finish({ ...runtime, state: 'ready' });
+      });
+      expect(screen.getByRole('checkbox', { name: /Enable local AI suggestions/ })).toBeDisabled();
+      expect(
+        screen.queryByText('Model ready. Enable suggestions below when you are ready.'),
+      ).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('requests restored access for cached files without preparing or downloading again', async () => {
+    runtime = { ...runtime, state: 'cached', modelCached: true };
+    render(<ClassificationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Allow model access' }));
+    await waitFor(() => expect(client.check).toHaveBeenCalledTimes(1));
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(client.prepare).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox', { name: /Enable local AI suggestions/ })).toBeEnabled(),
+    );
+  });
+  it('does not treat a full byte count as a completed cached model', async () => {
+    runtime = {
+      state: 'error',
+      downloadedBytes: 946_078_454,
+      totalBytes: 946_078_454,
+      modelCached: false,
+    };
+    render(<ClassificationSettings />);
+    expect(await screen.findByRole('button', { name: 'Download model' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Allow model access' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Model downloaded/)).not.toBeInTheDocument();
   });
   it('cancels preparation and ignores its late completion', async () => {
     let finish!: (value: BrowserRuntimeStatus) => void;

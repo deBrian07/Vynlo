@@ -40,15 +40,10 @@ export function ClassificationSettings() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const live = useRef(true);
   const operation = useRef(0);
-  const poll = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const stopPolling = useCallback(() => {
-    clearInterval(poll.current);
-    poll.current = undefined;
-  }, []);
   const invalidateOperation = useCallback(() => {
     operation.current++;
-    stopPolling();
-  }, [stopPolling]);
+  }, []);
+  const preparing = runtime.state === 'downloading' || runtime.state === 'loading';
   useEffect(() => {
     live.current = true;
     const load = () =>
@@ -68,9 +63,13 @@ export function ClassificationSettings() {
       if (area === 'local' && changes[BROWSER_PREFERENCES_KEY]) load();
     };
     load();
+    const token = operation.current;
     void classificationClient.browserStatus().then(
       (value) => {
-        if (live.current) setRuntime(value);
+        if (live.current && token === operation.current) {
+          setRuntime(value);
+          setConnected(value.state === 'ready');
+        }
       },
       () => {
         if (live.current) setError('Local AI availability could not be checked.');
@@ -83,7 +82,45 @@ export function ClassificationSettings() {
       chrome.storage?.onChanged?.removeListener(changed);
     };
   }, [invalidateOperation]);
+  useEffect(() => {
+    if ((!preparing && busy !== 'downloading') || busy === 'releasing') return;
+    let cancelled = false;
+    let checking = false;
+    const timer = setInterval(() => {
+      if (checking) return;
+      checking = true;
+      const token = operation.current;
+      void classificationClient
+        .browserStatus()
+        .then(
+          (value) => {
+            if (cancelled || !live.current || token !== operation.current) return;
+            setRuntime(value);
+            setConnected(value.state === 'ready');
+            if (value.state === 'ready')
+              setMessage('Model ready. Enable suggestions below when you are ready.');
+          },
+          () => {
+            if (!cancelled && live.current && token === operation.current) {
+              setRuntime((value) => ({
+                ...value,
+                state: 'error',
+                message: 'Setup progress could not be checked. Reopen settings to try again.',
+              }));
+            }
+          },
+        )
+        .finally(() => {
+          checking = false;
+        });
+    }, 750);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [preparing, busy]);
   const run = async (label: string, action: (active: () => boolean) => Promise<void>) => {
+    if (busy || preparing) return;
     const token = ++operation.current;
     const active = () => live.current && token === operation.current;
     setBusy(label);
@@ -92,12 +129,13 @@ export function ClassificationSettings() {
     try {
       await action(active);
     } catch (cause) {
-      if (active()) setError(errorMessage(cause));
-    } finally {
       if (active()) {
-        stopPolling();
-        setBusy('');
+        setError(errorMessage(cause));
+        if (label === 'downloading')
+          setRuntime((value) => ({ ...value, state: 'error', message: undefined }));
       }
+    } finally {
+      if (active()) setBusy('');
     }
   };
   const configure = (enabled: boolean, automatic: boolean) =>
@@ -115,22 +153,6 @@ export function ClassificationSettings() {
       if (!active()) return;
       if (!granted) throw new Error('Allow model download access to continue. No email was sent.');
       setRuntime({ ...emptyRuntime, state: 'downloading' });
-      let checking = false;
-      poll.current = setInterval(() => {
-        if (checking) return;
-        checking = true;
-        void classificationClient
-          .browserStatus()
-          .then(
-            (value) => {
-              if (active()) setRuntime(value);
-            },
-            () => {},
-          )
-          .finally(() => {
-            checking = false;
-          });
-      }, 750);
       const value = await classificationClient.prepare();
       if (!active()) return;
       setRuntime(value);
@@ -138,15 +160,20 @@ export function ClassificationSettings() {
       const preferences = await classificationClient.status();
       if (!active()) return;
       setStatus(preferences);
-      setMessage(
-        value.state === 'ready'
-          ? 'Model ready. Enable suggestions below when you are ready.'
-          : 'Model saved in this browser. Check GPU availability to enable suggestions.',
-      );
+      if (value.state === 'ready')
+        setMessage('Model ready. Enable suggestions below when you are ready.');
     });
   const check = () =>
     run('checking', async (active) => {
       setConnected(false);
+      if (!status.permission) {
+        const granted = await chrome.permissions.request({ origins: MODEL_ORIGINS });
+        if (!active()) return;
+        if (!granted) throw new Error('Allow model access to use the downloaded model.');
+        const preferences = await classificationClient.status();
+        if (!active()) return;
+        setStatus(preferences);
+      }
       await classificationClient.check();
       const value = await classificationClient.browserStatus();
       if (!active()) return;
@@ -156,27 +183,30 @@ export function ClassificationSettings() {
     });
   const release = async () => {
     invalidateOperation();
+    const token = operation.current;
+    const active = () => live.current && token === operation.current;
+    setConnected(false);
     setBusy('releasing');
     setError('');
+    setMessage('');
     try {
       await classificationClient.release();
-      if (!live.current) return;
+      if (!active()) return;
       const value = await classificationClient.browserStatus();
-      if (!live.current) return;
+      if (!active()) return;
       setRuntime(value);
       setMessage('GPU memory released. Downloaded model files stay in this browser.');
     } catch (cause) {
-      if (live.current) setError(errorMessage(cause));
+      if (active()) setError(errorMessage(cause));
     } finally {
-      if (live.current) setBusy('');
+      if (active()) setBusy('');
     }
   };
   const cached =
-    runtime.state === 'cached' ||
-    runtime.state === 'ready' ||
-    (runtime.totalBytes > 0 && runtime.downloadedBytes === runtime.totalBytes);
+    runtime.state === 'cached' || runtime.state === 'ready' || runtime.modelCached === true;
   const unsupported = runtime.state === 'unsupported';
-  const downloading = busy === 'downloading';
+  const downloading = runtime.state === 'downloading';
+  const working = !!busy || preparing;
   return (
     <section
       className="settings-section classification-settings"
@@ -201,7 +231,7 @@ export function ClassificationSettings() {
           Requires WebGPU. Vynlo runs one classification at a time and releases the model after 30
           seconds of inactivity. There is no slower CPU fallback.
         </p>
-        {(downloading || runtime.state === 'downloading') && (
+        {downloading && (
           <div role="status" aria-live="polite">
             <p>
               Downloading model · {formatBytes(runtime.downloadedBytes)}
@@ -221,7 +251,12 @@ export function ClassificationSettings() {
         {runtime.state === 'loading' && <p role="status">Loading model on your GPU…</p>}
         {cached && (
           <p className="muted">
-            Model downloaded · {runtime.state === 'ready' ? 'GPU ready' : 'GPU idle'}
+            Model downloaded ·{' '}
+            {runtime.state === 'ready'
+              ? 'GPU ready'
+              : runtime.state === 'loading'
+                ? 'Preparing GPU'
+                : 'GPU idle'}
           </p>
         )}
         {runtime.lastInferenceMs !== undefined && (
@@ -229,38 +264,46 @@ export function ClassificationSettings() {
             Last classification: {(runtime.lastInferenceMs / 1000).toFixed(1)} seconds.
           </p>
         )}
+        {runtime.lastLoadMs !== undefined && (
+          <p className="muted">
+            Last model load: {(runtime.lastLoadMs / 1000).toFixed(1)} seconds.
+          </p>
+        )}
         {runtime.message && (
-          <p className={unsupported || runtime.state === 'error' ? 'error-box' : 'muted'}>
+          <p
+            role={unsupported || runtime.state === 'error' ? 'alert' : undefined}
+            className={unsupported || runtime.state === 'error' ? 'error-box' : 'muted'}
+          >
             {runtime.message}
           </p>
         )}
         <div className="card-actions">
-          {!cached && !downloading && (
+          {!cached && !preparing && busy !== 'downloading' && (
             <button
               type="button"
               onClick={() => void download()}
-              disabled={!!busy || !ready || unsupported}
+              disabled={working || !ready || unsupported}
             >
               <Sparkles size={14} aria-hidden="true" /> Download model
             </button>
           )}
           {cached && (
-            <button type="button" onClick={() => void check()} disabled={!!busy || !ready}>
+            <button type="button" onClick={() => void check()} disabled={working || !ready}>
               {busy === 'checking' && (
                 <LoaderCircle size={14} className="spin" aria-hidden="true" />
               )}
-              Check GPU availability
+              {status.permission ? 'Check GPU availability' : 'Allow model access'}
             </button>
           )}
-          {(downloading || runtime.state === 'loading' || runtime.state === 'ready') && (
+          {(preparing || busy === 'downloading' || runtime.state === 'ready') && (
             <button type="button" onClick={() => void release()} disabled={busy === 'releasing'}>
-              {downloading || runtime.state === 'loading'
+              {preparing || busy === 'downloading'
                 ? 'Cancel and release GPU'
                 : 'Release GPU memory'}
             </button>
           )}
           {cached && (
-            <button type="button" onClick={() => setConfirmRemove(true)} disabled={!!busy}>
+            <button type="button" onClick={() => setConfirmRemove(true)} disabled={working}>
               Remove downloaded model
             </button>
           )}
@@ -276,7 +319,7 @@ export function ClassificationSettings() {
         <input
           type="checkbox"
           checked={status.enabled}
-          disabled={!!busy || !ready || (!status.enabled && !connected)}
+          disabled={working || !ready || (!status.enabled && (!connected || !status.permission))}
           onChange={(event) => void configure(event.target.checked, false)}
         />
       </label>
@@ -291,7 +334,7 @@ export function ClassificationSettings() {
         <input
           type="checkbox"
           checked={status.automatic}
-          disabled={!!busy || !ready || !status.enabled}
+          disabled={working || !ready || !status.enabled}
           onChange={(event) => void configure(status.enabled, event.target.checked)}
         />
       </label>

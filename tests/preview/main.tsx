@@ -56,6 +56,14 @@ const classifier = createClassificationService({
       classificationPreferences = value;
     },
     hasPermission: async () => false,
+    browserStatus: async () => ({
+      state: 'unsupported',
+      downloadedBytes: 0,
+      totalBytes: 0,
+      modelCached: false,
+      message:
+        'AI setup is available in the installed Chrome extension. This design preview uses fictional data.',
+    }),
     isEnhancementEnabled: async () => settings.enabled,
     publishRevision: async () => announce(),
     openTab: platform.openTab,

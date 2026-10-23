@@ -438,8 +438,9 @@ export function SettingsView({
             references, your notes, reminders, templates and preferences in extension-owned
             IndexedDB and Chrome local storage. It does not store message bodies or attachments,
             send data to a Vynlo server, use analytics, request OAuth, detect replies or send email.
-            Optional AI classification sends the current subject to local Ollama only after you
-            enable it. Data is scoped to this Chrome profile and is not encrypted by Vynlo.
+            Optional AI classification downloads fixed model files from Hugging Face after you start
+            setup, then processes the current subject locally in Chrome. Subjects are not sent to
+            Hugging Face. Data is scoped to this Chrome profile and is not encrypted by Vynlo.
             Uninstalling removes extension data; export a backup first. Source privacy policy:
             docs/PRIVACY.md.
           </p>

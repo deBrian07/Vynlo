@@ -23,9 +23,12 @@ beforeEach(() => {
   vi.stubGlobal('chrome', {
     runtime: {
       getManifest: () => ({ version: '0.1.0' }),
-      sendMessage: async () => ({
+      sendMessage: async (message: { type?: string }) => ({
         ok: true,
-        data: { enabled: false, automatic: false, permission: false, model: 'tev1:0.8b' },
+        data:
+          message.type === 'classify-browser-status'
+            ? { state: 'not-downloaded', downloadedBytes: 0, totalBytes: 946078454 }
+            : { enabled: false, automatic: false, permission: false, model: 'tev1:0.8b' },
       }),
     },
   });

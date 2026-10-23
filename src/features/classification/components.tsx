@@ -1,8 +1,9 @@
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ArrowUpRight, Check, LoaderCircle, Search, Sparkles, Tag, Trash2 } from 'lucide-react';
-import { Empty } from '../../components/ui';
+import { Confirm, Empty } from '../../components/ui';
 import type { ConversationRef } from '../../types/model';
 import { classificationClient } from './client';
+import { BROWSER_PREFERENCES_KEY, MODEL_ORIGINS, type BrowserRuntimeStatus } from './browser/model';
 import {
   CATEGORIES,
   CATEGORY_IDS,
@@ -21,81 +22,158 @@ const initialStatus: ClassifierStatus = {
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'This action could not be completed. Please try again.';
 
+const emptyRuntime: BrowserRuntimeStatus = {
+  state: 'not-downloaded',
+  downloadedBytes: 0,
+  totalBytes: 0,
+};
+const formatBytes = (value: number) => `${Math.round(value / 1_000_000).toLocaleString()} MB`;
+
 export function ClassificationSettings() {
   const [status, setStatus] = useState(initialStatus);
+  const [runtime, setRuntime] = useState<BrowserRuntimeStatus>(emptyRuntime);
   const [ready, setReady] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const live = useRef(true);
+  const operation = useRef(0);
+  const poll = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const stopPolling = useCallback(() => {
+    clearInterval(poll.current);
+    poll.current = undefined;
+  }, []);
+  const invalidateOperation = useCallback(() => {
+    operation.current++;
+    stopPolling();
+  }, [stopPolling]);
   useEffect(() => {
-    let live = true;
+    live.current = true;
     const load = () =>
       void classificationClient.status().then(
         (value) => {
-          if (live) {
+          if (live.current) {
             setStatus(value);
             setReady(true);
           }
         },
         () => {
-          if (live)
+          if (live.current)
             setError('Local AI settings could not be loaded. Reload this page to try again.');
         },
       );
     const changed = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes.classificationPreferences) {
-        setConnected(false);
-        load();
-      }
+      if (area === 'local' && changes[BROWSER_PREFERENCES_KEY]) load();
     };
     load();
+    void classificationClient.browserStatus().then(
+      (value) => {
+        if (live.current) setRuntime(value);
+      },
+      () => {
+        if (live.current) setError('Local AI availability could not be checked.');
+      },
+    );
     chrome.storage?.onChanged?.addListener(changed);
     return () => {
-      live = false;
+      live.current = false;
+      invalidateOperation();
       chrome.storage?.onChanged?.removeListener(changed);
     };
-  }, []);
-  const configure = async (enabled: boolean, automatic: boolean) => {
-    setBusy(true);
+  }, [invalidateOperation]);
+  const run = async (label: string, action: (active: () => boolean) => Promise<void>) => {
+    const token = ++operation.current;
+    const active = () => live.current && token === operation.current;
+    setBusy(label);
     setError('');
     setMessage('');
     try {
-      setStatus(await classificationClient.configure({ enabled, automatic }));
+      await action(active);
+    } catch (cause) {
+      if (active()) setError(errorMessage(cause));
+    } finally {
+      if (active()) {
+        stopPolling();
+        setBusy('');
+      }
+    }
+  };
+  const configure = (enabled: boolean, automatic: boolean) =>
+    run('saving', async (active) => {
+      const value = await classificationClient.configure({ enabled, automatic });
+      if (!active()) return;
+      setStatus(value);
       setMessage(
         enabled ? 'Local AI preferences saved.' : 'Local AI is off. Manual tags still work.',
       );
-    } catch (cause) {
-      setError(errorMessage(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const check = async () => {
-    setBusy(true);
-    setError('');
-    setMessage('');
-    setConnected(false);
-    try {
-      const granted = await chrome.permissions.request({ origins: ['http://127.0.0.1/*'] });
-      if (!granted)
-        throw new Error('Allow local connection access to check Ollama. Nothing was sent.');
-      const result = await classificationClient.check();
-      setConnected(true);
-      setStatus(await classificationClient.status());
+    });
+  const download = () =>
+    run('downloading', async (active) => {
+      const granted = await chrome.permissions.request({ origins: MODEL_ORIGINS });
+      if (!active()) return;
+      if (!granted) throw new Error('Allow model download access to continue. No email was sent.');
+      setRuntime({ ...emptyRuntime, state: 'downloading' });
+      let checking = false;
+      poll.current = setInterval(() => {
+        if (checking) return;
+        checking = true;
+        void classificationClient
+          .browserStatus()
+          .then(
+            (value) => {
+              if (active()) setRuntime(value);
+            },
+            () => {},
+          )
+          .finally(() => {
+            checking = false;
+          });
+      }, 750);
+      const value = await classificationClient.prepare();
+      if (!active()) return;
+      setRuntime(value);
+      setConnected(value.state === 'ready');
+      const preferences = await classificationClient.status();
+      if (!active()) return;
+      setStatus(preferences);
       setMessage(
-        `Connected to Ollama ${result.version}. ${MODEL} is installed. You can now enable suggestions.`,
+        value.state === 'ready'
+          ? 'Model ready. Enable suggestions below when you are ready.'
+          : 'Model saved in this browser. Check GPU availability to enable suggestions.',
       );
+    });
+  const check = () =>
+    run('checking', async (active) => {
+      setConnected(false);
+      await classificationClient.check();
+      const value = await classificationClient.browserStatus();
+      if (!active()) return;
+      setRuntime(value);
+      setConnected(true);
+      setMessage('Your GPU is available and the model is downloaded. You can enable suggestions.');
+    });
+  const release = async () => {
+    invalidateOperation();
+    setBusy('releasing');
+    setError('');
+    try {
+      await classificationClient.release();
+      if (!live.current) return;
+      const value = await classificationClient.browserStatus();
+      if (!live.current) return;
+      setRuntime(value);
+      setMessage('GPU memory released. Downloaded model files stay in this browser.');
     } catch (cause) {
-      setError(errorMessage(cause));
+      if (live.current) setError(errorMessage(cause));
     } finally {
-      setBusy(false);
+      if (live.current) setBusy('');
     }
   };
-  const origin =
-    typeof chrome !== 'undefined' && chrome.runtime?.id
-      ? `chrome-extension://${chrome.runtime.id}`
-      : 'chrome-extension://YOUR_EXTENSION_ID';
+  const cached = runtime.state === 'cached' || runtime.state === 'ready';
+  const unsupported = runtime.state === 'unsupported';
+  const downloading = busy === 'downloading';
   return (
     <section
       className="settings-section classification-settings"
@@ -105,46 +183,97 @@ export function ClassificationSettings() {
         Local email classification <span className="tag">Experimental</span>
       </h2>
       <p className="muted">
-        Sort conversations into Vynlo tags with Tev1 0.8B on your computer. Only the subject of a
-        supported conversation you open is processed. Gmail labels stay unchanged.
+        Get suggested Vynlo tags with Tev1 0.8B, directly in Chrome. Only opened conversation
+        subjects are processed, locally on your GPU. No Ollama or separate app is needed. Gmail
+        labels stay unchanged.
       </p>
-      <ol className="classification-setup">
-        <li>
-          Install{' '}
-          <a href="https://ollama.com/download" target="_blank" rel="noreferrer">
-            Ollama
-          </a>{' '}
-          (0.35 or later).
-        </li>
-        <li>
-          In Terminal, run <code>ollama pull tev1:0.8b</code>.
-        </li>
-        <li>Keep Ollama running, then check the connection below.</li>
-      </ol>
-      <button type="button" onClick={() => void check()} disabled={busy || !ready}>
-        {busy ? (
-          <LoaderCircle size={14} className="spin" aria-hidden="true" />
-        ) : (
-          <Sparkles size={14} aria-hidden="true" />
+      <div className="notice">
+        <strong>One download. Local suggestions.</strong>
+        <p>
+          Download about 950 MB of model files once. This can take a few minutes. Files are cached
+          in this browser; no email is sent to the download provider. Manual tags always work
+          without a download.
+        </p>
+        <p className="muted">
+          Requires WebGPU. Vynlo runs one classification at a time and releases the model after 30
+          seconds of inactivity. There is no slower CPU fallback.
+        </p>
+        {(downloading || runtime.state === 'downloading') && (
+          <div role="status" aria-live="polite">
+            <p>
+              Downloading model · {formatBytes(runtime.downloadedBytes)}
+              {runtime.totalBytes > 0 ? ` of ${formatBytes(runtime.totalBytes)}` : ''}
+            </p>
+            <progress
+              aria-label="Model download progress"
+              {...(runtime.totalBytes > 0
+                ? {
+                    value: Math.min(runtime.downloadedBytes, runtime.totalBytes),
+                    max: runtime.totalBytes,
+                  }
+                : {})}
+            />
+          </div>
         )}
-        Check local connection
-      </button>
-      <p className="muted">
-        This check sends no email content. Chrome may describe local access broadly; Vynlo connects
-        only to 127.0.0.1:11434.
-      </p>
+        {runtime.state === 'loading' && <p role="status">Loading model on your GPU…</p>}
+        {cached && (
+          <p className="muted">
+            Model downloaded · {runtime.state === 'ready' ? 'GPU ready' : 'GPU idle'}
+          </p>
+        )}
+        {runtime.lastInferenceMs !== undefined && (
+          <p className="muted">
+            Last classification: {(runtime.lastInferenceMs / 1000).toFixed(1)} seconds.
+          </p>
+        )}
+        {runtime.message && (
+          <p className={unsupported || runtime.state === 'error' ? 'error-box' : 'muted'}>
+            {runtime.message}
+          </p>
+        )}
+        <div className="card-actions">
+          {!cached && !downloading && (
+            <button
+              type="button"
+              onClick={() => void download()}
+              disabled={!!busy || !ready || unsupported}
+            >
+              <Sparkles size={14} aria-hidden="true" /> Download model
+            </button>
+          )}
+          {cached && (
+            <button type="button" onClick={() => void check()} disabled={!!busy || !ready}>
+              {busy === 'checking' && (
+                <LoaderCircle size={14} className="spin" aria-hidden="true" />
+              )}
+              Check GPU availability
+            </button>
+          )}
+          {(downloading || runtime.state === 'loading' || runtime.state === 'ready') && (
+            <button type="button" onClick={() => void release()} disabled={busy === 'releasing'}>
+              {downloading || runtime.state === 'loading'
+                ? 'Cancel and release GPU'
+                : 'Release GPU memory'}
+            </button>
+          )}
+          {cached && (
+            <button type="button" onClick={() => setConfirmRemove(true)} disabled={!!busy}>
+              Remove downloaded model
+            </button>
+          )}
+        </div>
+      </div>
       <label className="setting-row">
         <span>
           Enable local AI suggestions
           <small className="muted">
-            Allow opened conversation subjects to be sent to your local Ollama. Suggestions need
-            your review.
+            Allow your GPU to process opened conversation subjects. Suggestions need your review.
           </small>
         </span>
         <input
           type="checkbox"
           checked={status.enabled}
-          disabled={busy || !ready || (!status.enabled && !connected)}
+          disabled={!!busy || !ready || (!status.enabled && !connected)}
           onChange={(event) => void configure(event.target.checked, false)}
         />
       </label>
@@ -159,13 +288,13 @@ export function ClassificationSettings() {
         <input
           type="checkbox"
           checked={status.automatic}
-          disabled={busy || !ready || !status.enabled}
+          disabled={!!busy || !ready || !status.enabled}
           onChange={(event) => void configure(status.enabled, event.target.checked)}
         />
       </label>
       {!status.enabled && !connected && (
         <p className="muted">
-          Check the connection before enabling AI. You can use manual tags without Ollama.
+          Download the model and check your GPU before enabling AI. Manual tags are ready now.
         </p>
       )}
       {message && (
@@ -179,19 +308,42 @@ export function ClassificationSettings() {
         </p>
       )}
       <details>
-        <summary>Having trouble connecting?</summary>
+        <summary>Privacy and resource use</summary>
         <p className="muted">
-          Quit Ollama before starting it with this command. It allows this extension and disables
-          Ollama cloud features.
+          Model downloads come from Hugging Face. Subjects stay on your device. You can release GPU
+          memory or remove the downloaded model at any time. Browser storage can be cleared or
+          evicted, which requires downloading the model again.
         </p>
-        <code className="classification-command">
-          OLLAMA_NO_CLOUD=1 OLLAMA_ORIGINS={origin} ollama serve
-        </code>
         <p className="muted">
-          The model is experimental. A confident prediction can still be wrong; review suggestions
-          before relying on them.
+          This experimental model can be wrong even when its scores look confident. Review
+          suggestions before relying on them. Accuracy and speed depend on your device.
         </p>
+        <a
+          href="https://huggingface.co/togethercomputer/Tev1-0.8B-experimental"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Tev1 model details and licensing
+        </a>
       </details>
+      {confirmRemove && (
+        <Confirm
+          title="Remove downloaded model?"
+          label="Remove model"
+          onClose={() => setConfirmRemove(false)}
+          onConfirm={async () => {
+            await classificationClient.removeModel();
+            setConnected(false);
+            setStatus(await classificationClient.status());
+            setRuntime(await classificationClient.browserStatus());
+            setConfirmRemove(false);
+            setMessage('Model removed. Your saved tags are unchanged.');
+          }}
+        >
+          This turns off AI and removes cached model files. You will need to download them again to
+          use suggestions. Saved tags are kept.
+        </Confirm>
+      )}
     </section>
   );
 }

@@ -3,6 +3,7 @@ import { senderKind, type MessageSender } from '../../services/background';
 import { VynloDatabase } from '../../services/storage/database';
 import { conversationId, isAccountId, validConversationRef } from '../../services/validation';
 import { validBrowserStatus, type BrowserRuntimeStatus } from './browser/model';
+import { parsePrediction } from './inference';
 import {
   DEFAULT_CLASSIFICATION,
   MODEL,
@@ -102,6 +103,23 @@ export function createClassificationService({
 }) {
   let epoch = 0;
   let configurationRevision = 0;
+  let pendingConfiguration = 0;
+  let configurationQueue: Promise<unknown> = Promise.resolve();
+  // Reserve the gate synchronously: pausing must prevent new inference while Chrome
+  // is still releasing a GPU document or persisting the user's preference.
+  const configureSerially = <T>(task: () => Promise<T>): Promise<T> => {
+    const next = configurationQueue.then(task, task);
+    configurationQueue = next.catch(() => undefined);
+    return next;
+  };
+  const withConfigurationGate = async <T>(task: () => Promise<T>): Promise<T> => {
+    pendingConfiguration++;
+    try {
+      return await task();
+    } finally {
+      pendingConfiguration--;
+    }
+  };
   const edits = new Map<string, number>();
   let flight: { key: string; promise: Promise<TaggedConversation | null> } | undefined;
   // The map only covers the one active inference, so it cannot grow with mailbox size.
@@ -136,6 +154,7 @@ export function createClassificationService({
     const startedEpoch = epoch;
     const prefs = await getPreferences();
     if (
+      pendingConfiguration > 0 ||
       !prefs.enabled ||
       (automatic && !prefs.automatic) ||
       !(await platform.isEnhancementEnabled()) ||
@@ -164,16 +183,21 @@ export function createClassificationService({
       if (automatic && before) return before;
       if (startedEpoch !== epoch || revision !== (edits.get(key) ?? 0)) return null;
       if (!platform.infer) throw new Error(setupError);
-      const prediction = await platform.infer(ref.title);
-      if (
-        !isCategory(prediction.category) ||
-        !Number.isFinite(prediction.confidence) ||
-        prediction.confidence < 0 ||
-        prediction.confidence > 1
-      )
-        throw new Error(setupError);
+      const result = await platform.infer(ref.title);
+      const prediction = parsePrediction({
+        model: MODEL,
+        answers: {
+          category: {
+            type: 'choice',
+            choice: result?.category,
+            probabilities: result?.probabilities,
+            confidence: result?.confidence,
+          },
+        },
+      });
       const currentPreferences = await getPreferences();
       if (
+        pendingConfiguration > 0 ||
         !currentPreferences.enabled ||
         (automatic && !currentPreferences.automatic) ||
         !(await platform.isEnhancementEnabled()) ||
@@ -183,7 +207,12 @@ export function createClassificationService({
         return null;
       let saved: TaggedConversation | null = null;
       await database.update((records) => {
-        if (startedEpoch !== epoch || revision !== (edits.get(key) ?? 0)) return;
+        if (
+          pendingConfiguration > 0 ||
+          startedEpoch !== epoch ||
+          revision !== (edits.get(key) ?? 0)
+        )
+          return;
         const existing = records.emailTags.find((tag) => tag.id === key);
         if (automatic && existing) return;
         const timestamp = now();
@@ -255,27 +284,42 @@ export function createClassificationService({
           invalidate();
           await platform.release?.();
           return { ok: true, data: null };
-        case 'classify-remove-model':
+        case 'classify-remove-model': {
           invalidate();
-          await platform.setPreferences({ ...DEFAULT_CLASSIFICATION });
-          await platform.removeModel?.();
-          await platform.publishRevision();
-          return { ok: true, data: null };
+          return await withConfigurationGate(() =>
+            configureSerially(async () => {
+              // Complete explicit removal before any newer configuration is saved.
+              await platform.setPreferences({ ...DEFAULT_CLASSIFICATION });
+              await platform.removeModel?.();
+              await platform.publishRevision();
+              return { ok: true as const, data: null };
+            }),
+          );
+        }
         case 'classify-configure': {
-          // Pausing invalidates model work immediately, before any asynchronous storage operation.
           invalidate();
           const revision = configurationRevision;
-          if (message.preferences.enabled) await check();
-          else await platform.release?.();
-          if (revision !== configurationRevision) throw new Error(cancelled);
-          await platform.setPreferences({ ...message.preferences });
-          // A concurrent pause must also win if a storage write was already in progress.
-          if (revision !== configurationRevision) {
-            await platform.setPreferences({ ...DEFAULT_CLASSIFICATION });
-            throw new Error(cancelled);
-          }
-          await platform.publishRevision();
-          return { ok: true, data: await status() };
+          return await withConfigurationGate(async () => {
+            // A slow enable preflight must not hold up a newer pause request.
+            if (message.preferences.enabled) await check();
+            else await platform.release?.();
+            if (revision !== configurationRevision) throw new Error(cancelled);
+            return configureSerially(async () => {
+              if (revision !== configurationRevision) throw new Error(cancelled);
+              // Removal may have finished while this enable waited for a write.
+              if (message.preferences.enabled) await check();
+              if (revision !== configurationRevision) throw new Error(cancelled);
+              await platform.setPreferences({ ...message.preferences });
+              // Storage writes cannot be cancelled. Serialize their repair before
+              // the next intent so an older completion cannot undo a newer choice.
+              if (revision !== configurationRevision) {
+                await platform.setPreferences({ ...DEFAULT_CLASSIFICATION });
+                throw new Error(cancelled);
+              }
+              await platform.publishRevision();
+              return { ok: true as const, data: await status() };
+            });
+          });
         }
         case 'classify-suggest':
         case 'classify-automatic':
@@ -341,11 +385,20 @@ export function createClassificationService({
         setupError,
         cancelled,
         'Local AI needs WebGPU with shader-f16 support. Try an updated Chrome browser.',
+        'Local AI needs GPU buffers of at least 485 MiB. This device cannot fit the model. Manual tags remain available.',
         'Allow model download access in Vynlo settings first.',
         'Enable local suggestions in Vynlo settings first.',
         'This conversation has too little subject context. Choose a tag manually.',
         'A local suggestion is already running. Try again when it finishes.',
         'This tagged conversation is no longer available.',
+        'Download the local AI model in Vynlo settings first.',
+        'The local model returned an unsupported decision. Choose a tag manually.',
+        'Local GPU inference is unavailable. Open Vynlo settings to check this device.',
+        'Local AI is busy. Wait for the current operation or release the GPU.',
+        'Local AI stopped. Your tags were kept.',
+        'Local classification took too long. The GPU session was released; choose a tag manually or try again.',
+        'Model preparation timed out. Cancelled downloads do not enable AI.',
+        'Local AI took too long. The GPU session was released.',
       ];
       return {
         ok: false,

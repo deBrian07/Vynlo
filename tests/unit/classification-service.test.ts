@@ -387,3 +387,117 @@ describe('local classification worker', () => {
     expect((await f.database.read()).emailTags[0]!.category).toBe('work');
   });
 });
+
+describe('classification configuration ordering', () => {
+  it('keeps the newest enabled preference when an older storage write finishes late', async () => {
+    const f = fixture({ enabled: false, automatic: false });
+    const enteredWrite = deferred<void>();
+    const finishWrite = deferred<void>();
+    const persist = vi.mocked(f.platform.setPreferences).getMockImplementation()!;
+    vi.mocked(f.platform.setPreferences).mockImplementationOnce(async (value) => {
+      enteredWrite.resolve();
+      await finishWrite.promise;
+      await persist(value);
+    });
+    const first = f.service.handle(
+      { type: 'classify-configure', preferences: { enabled: true, automatic: false } },
+      extension,
+    );
+    await enteredWrite.promise;
+    const latest = f.service.handle(
+      { type: 'classify-configure', preferences: { enabled: true, automatic: true } },
+      extension,
+    );
+    finishWrite.resolve();
+    expect((await first).ok).toBe(false);
+    expect((await latest).ok).toBe(true);
+    expect(await f.request({ type: 'classify-status' })).toMatchObject({
+      ok: true,
+      data: { enabled: true, automatic: true },
+    });
+  });
+
+  it('blocks newly arriving inference as soon as a pause is requested', async () => {
+    const f = fixture();
+    const releasing = deferred<void>();
+    const finishRelease = deferred<void>();
+    f.platform.release = vi.fn(async () => {
+      releasing.resolve();
+      await finishRelease.promise;
+    });
+    const pause = f.service.handle(
+      { type: 'classify-configure', preferences: { enabled: false, automatic: false } },
+      extension,
+    );
+    await releasing.promise;
+    expect(await f.request({ type: 'classify-automatic', ref })).toEqual({ ok: true, data: null });
+    expect((await f.request({ type: 'classify-suggest', ref })).ok).toBe(false);
+    expect(f.platform.infer).not.toHaveBeenCalled();
+    // Manual tags are independent of model consent and remain usable.
+    expect((await f.request({ type: 'classify-set', ref, category: 'work' })).ok).toBe(true);
+    finishRelease.resolve();
+    expect((await pause).ok).toBe(true);
+  });
+
+  it('blocks inference while model removal waits for preference storage', async () => {
+    const f = fixture();
+    const writing = deferred<void>();
+    const finishWrite = deferred<void>();
+    const persist = vi.mocked(f.platform.setPreferences).getMockImplementation()!;
+    vi.mocked(f.platform.setPreferences).mockImplementationOnce(async (value) => {
+      writing.resolve();
+      await finishWrite.promise;
+      await persist(value);
+    });
+    f.platform.removeModel = vi.fn(async () => undefined);
+    const removal = f.service.handle({ type: 'classify-remove-model' }, extension);
+    await writing.promise;
+    expect(await f.request({ type: 'classify-automatic', ref })).toEqual({ ok: true, data: null });
+    expect(f.platform.infer).not.toHaveBeenCalled();
+    finishWrite.resolve();
+    expect((await removal).ok).toBe(true);
+    expect(f.platform.removeModel).toHaveBeenCalledOnce();
+  });
+
+  it('rechecks model availability before saving an enable queued behind removal', async () => {
+    const f = fixture();
+    const removing = deferred<void>();
+    const finishRemoval = deferred<void>();
+    let cached = true;
+    f.platform.removeModel = vi.fn(async () => {
+      removing.resolve();
+      await finishRemoval.promise;
+      cached = false;
+    });
+    vi.mocked(f.platform.check!).mockImplementation(async () => {
+      if (!cached) throw new Error('Download the local AI model in Vynlo settings first.');
+      return { model: MODEL, version: 'browser-webgpu' };
+    });
+    const removal = f.service.handle({ type: 'classify-remove-model' }, extension);
+    await removing.promise;
+    const enable = f.service.handle(
+      { type: 'classify-configure', preferences: { enabled: true, automatic: true } },
+      extension,
+    );
+    finishRemoval.resolve();
+    expect((await removal).ok).toBe(true);
+    expect(await enable).toEqual({
+      ok: false,
+      error: 'Download the local AI model in Vynlo settings first.',
+    });
+    expect(await f.request({ type: 'classify-status' })).toMatchObject({
+      data: { enabled: false, automatic: false },
+    });
+  });
+
+  it.each([
+    { ...prediction, probabilities: {} },
+    { ...prediction, probabilities: { ...prediction.probabilities, work: Number.NaN } },
+    { ...prediction, category: 'work' },
+  ])('rejects malformed prediction scores before writing user data: %j', async (invalid) => {
+    const f = fixture();
+    vi.mocked(f.platform.infer!).mockResolvedValue(invalid as Prediction);
+    expect((await f.request({ type: 'classify-suggest', ref })).ok).toBe(false);
+    expect((await f.database.read()).emailTags).toEqual([]);
+  });
+});

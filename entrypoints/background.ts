@@ -97,12 +97,16 @@ export default defineBackground(() => {
           message.type === 'import' ||
           (message.type === 'settings' && !message.settings.enabled))
       ) {
-        classifier.invalidate();
-        await browserInference.release();
-        if (message.type === 'clear') {
-          await chrome.storage.local.set({ [BROWSER_PREFERENCES_KEY]: DEFAULT_CLASSIFICATION });
-          await browserInference.removeModel();
-        }
+        // Reuse the classifier's serialized consent path. Merely invalidating an
+        // existing prediction leaves a window where another tab can start work
+        // using the previous preferences while clear/import is still awaiting I/O.
+        const paused = await classifier.handle(
+          message.type === 'clear'
+            ? { type: 'classify-remove-model' }
+            : { type: 'classify-configure', preferences: DEFAULT_CLASSIFICATION },
+          sender,
+        );
+        if (!paused.ok) return paused;
       }
       return service.handle(message, sender);
     };

@@ -1,6 +1,9 @@
 /** Prepare packaged JavaScript/WASM. This script never downloads model weights. */
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import {
   access,
   mkdir,
@@ -24,7 +27,6 @@ const DESTINATION = path.join(ROOT, 'public/inference-runtime');
 const DEPENDENCIES = path.join(ROOT, 'artifacts/browser-ai-deps');
 const PACKAGE = path.join(DEPENDENCIES, 'node_modules/@huggingface/transformers');
 const ORT = path.join(DEPENDENCIES, 'node_modules/onnxruntime-web');
-const COMMON = path.join(DEPENDENCIES, 'node_modules/onnxruntime-common');
 const sha256 = (content) => createHash('sha256').update(content).digest('hex');
 
 async function packageVersion(directory) {
@@ -38,7 +40,7 @@ async function packageVersion(directory) {
 async function verify(directory) {
   const manifest = JSON.parse(await readFile(path.join(directory, 'manifest.json'), 'utf8'));
   if (
-    manifest.schemaVersion !== 1 ||
+    manifest.schemaVersion !== 2 ||
     manifest.transformersVersion !== VERSION ||
     manifest.onnxRuntimeVersion !== ORT_VERSION ||
     !Array.isArray(manifest.files) ||
@@ -79,6 +81,7 @@ const ARCHIVES = [
     integrity:
       'sha512-5+voSeUCFK6PCKlY15dPhNOKq3/zOTxDN7oC+Wy9dFb1QZ0TSQomZRRy7URRK8YRuUoE9fGMQTTPC5d/pWBJhA==',
     url: 'https://registry.npmjs.org/@huggingface/transformers/-/transformers-4.3.1.tgz',
+    files: ['package/package.json', 'package/LICENSE', 'package/dist/transformers.web.js'],
   },
   {
     name: 'onnxruntime-web',
@@ -87,6 +90,12 @@ const ARCHIVES = [
     integrity:
       'sha512-Iy7rtadoBgxS/LLvDr3QW38DB1PNXRnr0GJMcL0TAt7c9qjgVQl83UlGCVyeAnK2InpmW8Uc3PL8XIuqtDeF6g==',
     url: 'https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.31.0-dev.20260914-8d85527a0.tgz',
+    files: [
+      'package/package.json',
+      'package/dist/ort.webgpu.min.mjs',
+      'package/dist/ort-wasm-simd-threaded.asyncify.mjs',
+      'package/dist/ort-wasm-simd-threaded.asyncify.wasm',
+    ],
   },
   {
     name: 'onnxruntime-common',
@@ -95,6 +104,7 @@ const ARCHIVES = [
     integrity:
       'sha512-gBuF6U32YErKIAt+yD7DeGBpjRxhJ1uJwako6ygjokSZULDU6Pd+KWComX8Tumk1hYVHRxjPj7mdMnD0ryAPOw==',
     url: 'https://registry.npmjs.org/onnxruntime-common/-/onnxruntime-common-1.31.0-dev.20260911-2a43ec07e.tgz',
+    files: ['package/package.json', 'package/dist/esm'],
   },
 ];
 
@@ -114,49 +124,61 @@ async function run(command, args) {
   });
 }
 
+async function download(url, destination, maximumBytes = 40_000_000) {
+  // A failed transfer never leaves a truncated file that poisons the next build.
+  const temporary = `${destination}.partial`;
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(60_000),
+      credentials: 'omit',
+      redirect: 'error',
+    });
+    if (!response.ok || !response.body)
+      throw new Error(`Cannot download a required runtime artifact (HTTP ${response.status}).`);
+    let bytes = 0;
+    async function* bounded(body) {
+      for await (const chunk of body) {
+        bytes += chunk.byteLength;
+        if (bytes > maximumBytes) throw new Error('A runtime artifact exceeded its size limit.');
+        yield chunk;
+      }
+    }
+    await pipeline(bounded(Readable.fromWeb(response.body)), createWriteStream(temporary));
+    await rename(temporary, destination);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+}
+async function archiveVerified(file, integrity) {
+  try {
+    const content = await readFile(file);
+    return `sha512-${createHash('sha512').update(content).digest('base64')}` === integrity;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
 async function install() {
   await mkdir(DEPENDENCIES, { recursive: true });
-  console.log(`Preparing the packaged browser runtime (${VERSION}). Model weights are excluded.`);
-  try {
-    const command = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    await run(command, [
-      'install',
-      '--prefix',
-      DEPENDENCIES,
-      '--ignore-scripts',
-      '--no-save',
-      '--no-package-lock',
-      '--no-audit',
-      '--no-fund',
-      '--cache',
-      path.join(ROOT, '.npm-browser-cache'),
-      '--fetch-retries=0',
-      '--fetch-timeout=20000',
-      `@huggingface/transformers@${VERSION}`,
-    ]);
-    return;
-  } catch {
-    console.log(
-      'Trying the pinned browser-only archives. Native inference packages are not required.',
-    );
-  }
+  console.log(`Preparing the pinned browser runtime (${VERSION}). Model weights are excluded.`);
+  // These prebundled browser artifacts need only three exact archives. Installing
+  // Transformers through npm also resolves native ONNX and image dependencies
+  // that the extension cannot use, outside the root frozen lockfile.
   for (const item of ARCHIVES) {
     const archive = path.join(DEPENDENCIES, item.archive);
-    try {
-      await access(archive);
-    } catch {
-      await run('curl', ['-sS', '--fail', '--max-time', '60', item.url, '-o', archive]);
+    if (!(await archiveVerified(archive, item.integrity))) {
+      await download(item.url, archive);
+      if (!(await archiveVerified(archive, item.integrity))) {
+        await rm(archive, { force: true });
+        throw new Error(`The ${item.name} archive failed its pinned integrity check.`);
+      }
     }
-    const content = await readFile(archive);
-    const integrity = `sha512-${createHash('sha512').update(content).digest('base64')}`;
-    if (integrity !== item.integrity)
-      throw new Error(
-        `The ${item.name} archive failed its pinned integrity check. Remove the incomplete archive and retry.`,
-      );
     const destination = path.join(DEPENDENCIES, 'node_modules', item.name);
+    // Always extract reviewed files from verified archives before building. A
+    // package.json version alone cannot establish the integrity of existing code.
+    await rm(destination, { recursive: true, force: true });
     await mkdir(destination, { recursive: true });
-    // Only the pinned, verified upstream archives are extracted, with package/ stripped.
-    await run('tar', ['-xzf', archive, '--strip-components=1', '-C', destination]);
+    await run('tar', ['-xzf', archive, '--strip-components=1', '-C', destination, ...item.files]);
     if ((await packageVersion(destination)) !== item.version)
       throw new Error(`Unexpected archived version: ${item.name}`);
   }
@@ -179,19 +201,7 @@ async function prepare() {
     // Rebuild from the pinned package archives below. The existing destination is
     // replaced only after the complete new runtime has passed verification.
   }
-  if (
-    (await packageVersion(PACKAGE)) !== VERSION ||
-    (await packageVersion(ORT)) !== ORT_VERSION ||
-    (await packageVersion(COMMON)) !== '1.31.0-dev.20260911-2a43ec07e'
-  )
-    await install();
-  if (
-    (await packageVersion(PACKAGE)) !== VERSION ||
-    (await packageVersion(ORT)) !== ORT_VERSION ||
-    (await packageVersion(COMMON)) !== '1.31.0-dev.20260911-2a43ec07e'
-  ) {
-    throw new Error('Installed runtime versions differ from the versions reviewed for Vynlo.');
-  }
+  await install();
   const publicDirectory = path.dirname(DESTINATION);
   await mkdir(publicDirectory, { recursive: true });
   const temporary = await mkdtemp(path.join(publicDirectory, '.inference-runtime-'));
@@ -202,7 +212,7 @@ async function prepare() {
     const entry = path.join(DEPENDENCIES, 'runtime-entry.mjs');
     await writeFile(
       entry,
-      `export { AutoTokenizer, Qwen3_5ForCausalLM, Tensor, env } from ${JSON.stringify(source)};\nexport const runtimeVersion = ${JSON.stringify(VERSION)};\n`,
+      `export { AutoTokenizer, Qwen3_5ForCausalLM, Tensor, env } from ${JSON.stringify(source)};\nexport { InferenceSession } from "onnxruntime-web/webgpu";\nexport const runtimeVersion = ${JSON.stringify(VERSION)};\n`,
     );
     await build({
       configFile: false,
@@ -231,15 +241,11 @@ async function prepare() {
     try {
       await access(license);
     } catch {
-      await run('curl', [
-        '-sS',
-        '--fail',
-        '--max-time',
-        '30',
+      await download(
         'https://raw.githubusercontent.com/microsoft/onnxruntime/8d85527a010e294a26b274749f74294b2a32cec5/LICENSE',
-        '-o',
         license,
-      ]);
+        100_000,
+      );
     }
     const licenseContent = await readFile(license);
     if (
@@ -263,7 +269,7 @@ async function prepare() {
     }
     await writeFile(
       path.join(temporary, 'manifest.json'),
-      `${JSON.stringify({ schemaVersion: 1, transformersVersion: VERSION, onnxRuntimeVersion: ORT_VERSION, files }, null, 2)}\n`,
+      `${JSON.stringify({ schemaVersion: 2, transformersVersion: VERSION, onnxRuntimeVersion: ORT_VERSION, files }, null, 2)}\n`,
     );
     await verify(temporary);
     try {

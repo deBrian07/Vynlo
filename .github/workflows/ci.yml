@@ -34,6 +34,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm check:browser-ai
+      - run: pnpm check:browser-ai:tokenizer
       - run: pnpm zip
       - uses: actions/upload-artifact@v7
         with:

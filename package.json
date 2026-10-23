@@ -27,6 +27,7 @@
     "prepare:browser-ai": "node scripts/prepare-browser-ai.mjs",
     "check:browser-ai": "node scripts/prepare-browser-ai.mjs --check && node scripts/check-browser-ai-preparation.mjs && node --disallow-code-generation-from-strings scripts/check-browser-ai-runtime.mjs",
     "check:browser-ai:tokenizer": "node scripts/check-browser-ai-tokenizer.mjs",
+    "check:browser-ai:normalization": "node --disallow-code-generation-from-strings scripts/check-browser-ai-normalization.mjs",
     "test:classifier:browser": "node scripts/prepare-browser-ai.mjs && vite --config tests/browser-ai/vite.config.ts",
     "test:classifier:browser:build": "node scripts/prepare-browser-ai.mjs && vite build --config tests/browser-ai/vite.config.ts"
   },

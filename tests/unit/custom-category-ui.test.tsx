@@ -148,3 +148,20 @@ it('requires confirmation before removing category examples', async () => {
     expect(client.deleteCategory).toHaveBeenCalledWith(category.accountId, category.id),
   );
 });
+
+it('fails closed when the caller explicitly has no verified account', () => {
+  render(
+    <EmailTags
+      accountId={null}
+      current={tag}
+      tags={[tag]}
+      categories={[category]}
+      onUpdated={vi.fn()}
+    />,
+  );
+  expect(
+    screen.queryByRole('region', { name: 'Current conversation tag' }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText(tag.title)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'New category' })).toBeDisabled();
+});

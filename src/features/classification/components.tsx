@@ -542,9 +542,13 @@ export function EmailTags({
   categories: suppliedCategories = [],
   onUpdated,
 }: TagProps) {
-  const accountId = explicitAccountId ?? current?.accountId;
+  const accountId = explicitAccountId === undefined ? current?.accountId : explicitAccountId;
   const categories = suppliedCategories.filter((category) => category.accountId === accountId);
-  const tags = accountId ? suppliedTags.filter((tag) => tag.accountId === accountId) : suppliedTags;
+  const tags = accountId
+    ? suppliedTags.filter((tag) => tag.accountId === accountId)
+    : explicitAccountId === null
+      ? []
+      : suppliedTags;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Category | 'all' | 'suggested'>('all');
   const activeFilter =

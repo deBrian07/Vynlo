@@ -423,3 +423,47 @@ test('manual email tags persist without AI, download nothing and remain account 
   ).toHaveLength(1);
   expect(modelRequests).toEqual([]);
 });
+
+test('custom categories work with AI off, persist and delete without touching Gmail', async () => {
+  await dashboard();
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  await page.getByRole('button', { name: 'New category', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Create category', exact: true });
+  await editor.getByLabel('Category name', { exact: true }).fill('Research papers');
+  await editor
+    .getByLabel('What belongs here?', { exact: true })
+    .fill('Papers and research reading discussions');
+  await editor.getByRole('button', { name: 'Save category', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  const category = page.getByRole('combobox', { name: 'Category', exact: true });
+  await category.selectOption({ label: 'Research papers' });
+  await expect
+    .poll(
+      async () =>
+        (await request({ type: 'snapshot', accountId: 'person@example.com' })).emailTags?.[0]
+          ?.source,
+    )
+    .toBe('manual');
+  await page.reload();
+  await dashboard();
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  const selected = page.getByRole('combobox', { name: 'Category', exact: true });
+  await expect(selected.locator('option:checked')).toHaveText('Research papers');
+  await expect(page.getByText('1 confirmed example', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete category Research papers', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Delete Research papers?', exact: true });
+  await confirm.getByRole('button', { name: 'Delete category', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (await request({ type: 'snapshot', accountId: 'person@example.com' })).categories?.length,
+    )
+    .toBe(0);
+  await expect
+    .poll(
+      async () =>
+        (await request({ type: 'snapshot', accountId: 'person@example.com' })).emailTags?.length,
+    )
+    .toBe(0);
+  await expect(page.locator('[role="main"]')).toBeVisible();
+});

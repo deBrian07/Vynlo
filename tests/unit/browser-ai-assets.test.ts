@@ -124,6 +124,53 @@ describe('pinned browser model cache', () => {
     expect(fetcher).not.toHaveBeenCalled();
     expect((await assets.status()).state).toBe('not-downloaded');
   });
+  it.each([true, false])(
+    'checks decoded size even if CORS hides compression metadata (%s)',
+    async (exposeEncoding) => {
+      const f = storageFixture();
+      seedFiles(f.stored);
+      f.stored.delete(base + 'config.json');
+      const assets = createModelAssets({
+        cacheStorage: f.storage,
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(
+          new Response(new Uint8Array(3198), {
+            headers: {
+              'Content-Length': '1200',
+              ...(exposeEncoding ? { 'Content-Encoding': 'gzip' } : {}),
+            },
+          }),
+        ),
+      });
+      await assets.download(new AbortController().signal);
+      expect((await assets.status()).state).toBe('cached');
+    },
+  );
+  it('reports insufficient quota before starting a large download', async () => {
+    const f = storageFixture();
+    const fetcher = vi.fn();
+    const assets = createModelAssets({
+      cacheStorage: f.storage,
+      fetcher,
+      estimateStorage: async () => ({ quota: MODEL_DOWNLOAD_BYTES, usage: 1 }),
+    });
+    await expect(assets.download(new AbortController().signal)).rejects.toThrow(
+      'more browser storage',
+    );
+    expect(fetcher).not.toHaveBeenCalled();
+    expect((await assets.status()).state).toBe('not-downloaded');
+  });
+  it('only needs quota for missing files when resuming', async () => {
+    const f = storageFixture();
+    seedFiles(f.stored);
+    f.stored.delete(base + 'config.json');
+    const assets = createModelAssets({
+      cacheStorage: f.storage,
+      estimateStorage: async () => ({ quota: 4000, usage: 802 }),
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(new Response(new Uint8Array(3198))),
+    });
+    await assets.download(new AbortController().signal);
+    expect((await assets.status()).state).toBe('cached');
+  });
   it('allows clearing only the dedicated model cache', async () => {
     const f = storageFixture();
     const assets = createModelAssets({ cacheStorage: f.storage, fetcher: vi.fn() });

@@ -1,16 +1,19 @@
 import { CATEGORIES, CATEGORY_IDS, type Prediction } from '../model';
-import { createModelAssets, MODEL_DOWNLOAD_BYTES } from './assets';
+import { createModelAssets, MODEL_DOWNLOAD_BYTES, modelAssetUrl } from './assets';
 import {
   IDLE_TIMEOUT_MS,
   MAX_INPUT_TOKENS,
+  MIN_GPU_BUFFER_BYTES,
   MODEL_REPO,
   MODEL_REVISION,
   type BrowserRuntimeStatus,
 } from './model';
 
 type Tensor = {
+  type?: string;
   data: ArrayLike<number | bigint>;
   dims: number[];
+  to(type: string): Tensor;
   dispose?: () => void | Promise<void>;
 };
 type TokenInputs = Record<string, Tensor>;
@@ -30,6 +33,7 @@ export interface BrowserInferenceRuntime {
   env: {
     allowLocalModels: boolean;
     allowRemoteModels: boolean;
+    remotePathTemplate: string;
     useBrowserCache: boolean;
     useWasmCache: boolean;
     fetch: typeof fetch;
@@ -47,9 +51,10 @@ export interface BrowserInferenceRuntime {
   Tensor: new (type: string, data: bigint[], dims: number[]) => Tensor;
 }
 interface Gpu {
-  requestAdapter(options: {
-    powerPreference: string;
-  }): Promise<{ features: { has(feature: string): boolean } } | null>;
+  requestAdapter(options: { powerPreference: string }): Promise<{
+    features: { has(feature: string): boolean };
+    limits: { maxStorageBufferBindingSize: number; maxBufferSize: number };
+  } | null>;
 }
 const emptyStatus = (): BrowserRuntimeStatus => ({
   state: 'not-downloaded',
@@ -65,7 +70,11 @@ async function disposeTensors(value: unknown, seen = new Set<unknown>()): Promis
   if (!value || typeof value !== 'object' || seen.has(value)) return;
   seen.add(value);
   if ('dispose' in value && typeof value.dispose === 'function') {
-    await value.dispose();
+    // A cleanup failure must not strand the engine in its busy state or hide the inference error.
+    const dispose = value.dispose;
+    await Promise.resolve()
+      .then(() => dispose.call(value))
+      .catch(() => undefined);
   } else if (!ArrayBuffer.isView(value)) {
     await Promise.allSettled(Object.values(value).map((child) => disposeTensors(child, seen)));
   }
@@ -87,10 +96,35 @@ export function createBrowserEngine(
   let runtime: BrowserInferenceRuntime | null = null;
   let model: Model | null = null;
   let tokenizer: Tokenizer | null = null;
+  let chatTemplate: string | null = null;
   let letters: number[] = [];
   let loading: Promise<void> | null = null;
   let busy = false;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const configureRuntime = async () => {
+    runtime ??= await (options.loadRuntime ?? loadPackagedRuntime)();
+    if (runtime.runtimeVersion !== '4.3.1')
+      throw new Error('The packaged AI runtime has an unexpected version.');
+    runtime.env.allowLocalModels = false;
+    runtime.env.allowRemoteModels = true;
+    // This runtime's tokenizer discovery omits the caller's revision. Pin URL
+    // construction itself so discovery and model reads still hit only our cache.
+    runtime.env.remotePathTemplate = `{model}/resolve/${MODEL_REVISION}/`;
+    runtime.env.useBrowserCache = false;
+    runtime.env.useWasmCache = false;
+    runtime.env.fetch = assets.fetch;
+    runtime.env.logLevel = 50;
+    Object.assign(runtime.env.backends.onnx.wasm, {
+      wasmPaths: {
+        mjs: packageUrl('ort-wasm-simd-threaded.asyncify.mjs'),
+        wasm: packageUrl('ort-wasm-simd-threaded.asyncify.wasm'),
+      },
+      numThreads: 1,
+      proxy: false,
+    });
+    runtime.env.backends.onnx.webgpu.powerPreference = 'low-power';
+    runtime.env.backends.onnx.logLevel = 'fatal';
+  };
   const stopIdle = () => {
     clearTimeout(idleTimer);
     idleTimer = undefined;
@@ -106,6 +140,7 @@ export function createBrowserEngine(
     const previous = model;
     model = null;
     tokenizer = null;
+    chatTemplate = null;
     letters = [];
     runtime = null;
     await previous?.dispose();
@@ -117,8 +152,7 @@ export function createBrowserEngine(
       void release().catch(() => undefined);
     }, IDLE_TIMEOUT_MS);
   };
-  const initialize = async (signal?: AbortSignal) => {
-    if (model && tokenizer) return;
+  const probeGpu = async () => {
     const gpu =
       options.gpu === undefined
         ? (globalThis.navigator as Navigator & { gpu?: Gpu }).gpu
@@ -132,30 +166,36 @@ export function createBrowserEngine(
       });
       throw new Error(current.message);
     }
+    if (
+      !adapter.limits ||
+      !(adapter.limits.maxStorageBufferBindingSize >= MIN_GPU_BUFFER_BYTES) ||
+      !(adapter.limits.maxBufferSize >= MIN_GPU_BUFFER_BYTES)
+    ) {
+      emit({
+        ...(await assets.status()),
+        state: 'unsupported',
+        message:
+          'Local AI needs GPU buffers of at least 485 MiB. This device cannot fit the model. Manual tags remain available.',
+      });
+      throw new Error(current.message);
+    }
+  };
+  const initialize = async (signal?: AbortSignal) => {
+    if (model && tokenizer && chatTemplate) return;
+    const loadStarted = performance.now();
+    await probeGpu();
     signal?.throwIfAborted();
     emit({ ...(await assets.status()), state: 'loading' });
-    runtime = await (options.loadRuntime ?? loadPackagedRuntime)();
-    if (runtime.runtimeVersion !== '4.3.1')
-      throw new Error('The packaged AI runtime has an unexpected version.');
-    runtime.env.allowLocalModels = false;
-    runtime.env.allowRemoteModels = true;
-    runtime.env.useBrowserCache = false;
-    runtime.env.useWasmCache = false;
-    runtime.env.fetch = assets.fetch;
-    runtime.env.logLevel = 50; // NONE: the runtime must never print subject token tensors on failure.
-    Object.assign(runtime.env.backends.onnx.wasm, {
-      wasmPaths: {
-        mjs: packageUrl('ort-wasm-simd-threaded.asyncify.mjs'),
-        wasm: packageUrl('ort-wasm-simd-threaded.asyncify.wasm'),
-      },
-      numThreads: 1,
-      proxy: false,
-    });
-    runtime.env.backends.onnx.webgpu.powerPreference = 'low-power';
-    runtime.env.backends.onnx.logLevel = 'fatal';
-    tokenizer = await runtime.AutoTokenizer.from_pretrained(MODEL_REPO, {
+    await configureRuntime();
+    tokenizer = await runtime!.AutoTokenizer.from_pretrained(MODEL_REPO, {
       revision: MODEL_REVISION,
     });
+    // Transformers.js does not load standalone chat_template.jinja automatically.
+    const templateResponse = await assets.fetch(modelAssetUrl('chat_template.jinja'));
+    if (!templateResponse.ok) throw new Error('The model chat template is unavailable.');
+    chatTemplate = await templateResponse.text();
+    if (!chatTemplate.trim() || chatTemplate.length > 20_000)
+      throw new Error('The model chat template is invalid.');
     letters = CATEGORY_IDS.map((_, i) => {
       const ids = tokenizer!.encode(String.fromCharCode(65 + i), { add_special_tokens: false });
       if (ids.length !== 1 || ids[0] === undefined || !Number.isInteger(ids[0]) || ids[0] < 0)
@@ -164,7 +204,7 @@ export function createBrowserEngine(
     });
     if (new Set(letters).size !== letters.length)
       throw new Error('The tokenizer has ambiguous category choices.');
-    model = await runtime.Qwen3_5ForCausalLM.from_pretrained(MODEL_REPO, {
+    model = await runtime!.Qwen3_5ForCausalLM.from_pretrained(MODEL_REPO, {
       revision: MODEL_REVISION,
       device: 'webgpu',
       dtype: { embed_tokens: 'fp16', decoder_model_merged: 'q4f16' },
@@ -173,22 +213,16 @@ export function createBrowserEngine(
     if (!model.sessions.decoder_model_merged?.inputNames.includes('num_logits_to_keep'))
       throw new Error('This model does not support efficient category scoring.');
     signal?.throwIfAborted();
-    emit({ ...(await assets.status()), state: 'ready' });
+    emit({
+      ...(await assets.status()),
+      state: 'ready',
+      lastLoadMs: Math.round(performance.now() - loadStarted),
+    });
   };
   const check = async () => {
-    const gpu =
-      options.gpu === undefined
-        ? (globalThis.navigator as Navigator & { gpu?: Gpu }).gpu
-        : options.gpu;
-    const adapter = await gpu?.requestAdapter({ powerPreference: 'low-power' });
-    if (!adapter || !adapter.features.has('shader-f16')) {
-      emit({
-        ...(await assets.status()),
-        state: 'unsupported',
-        message: 'Local AI needs WebGPU with shader-f16 support. Try an updated Chrome browser.',
-      });
-      throw new Error(current.message);
-    }
+    await probeGpu();
+    // Detect a missing/broken packaged runtime before asking the user to download large weights.
+    await configureRuntime();
     if (current.state === 'unsupported') emit(await assets.status());
     return { available: true as const };
   };
@@ -199,6 +233,7 @@ export function createBrowserEngine(
           const previous = model;
           model = null;
           tokenizer = null;
+          chatTemplate = null;
           letters = [];
           runtime = null;
           await previous?.dispose().catch(() => undefined);
@@ -221,13 +256,20 @@ export function createBrowserEngine(
     check,
     async prepare(signal = new AbortController().signal) {
       if (busy || loading) throw new Error('Local AI is already starting or working.');
+      busy = true;
       stopIdle();
-      // Probe before a large download. Missing GPU support never falls back to CPU.
-      await check();
-      await assets.download(signal);
-      await ensureReady(signal);
-      startIdle();
-      return status();
+      try {
+        signal.throwIfAborted();
+        // Probe before a large download. Missing GPU support never falls back to CPU.
+        await check();
+        signal.throwIfAborted();
+        await assets.download(signal);
+        await ensureReady(signal);
+        return status();
+      } finally {
+        busy = false;
+        if (model) startIdle();
+      }
     },
     async infer(subject: string): Promise<Prediction> {
       if (busy || loading) throw new Error('Local AI is busy. Try again in a moment.');
@@ -237,11 +279,14 @@ export function createBrowserEngine(
       stopIdle();
       let inputs: TokenInputs | undefined;
       let outputs: Record<string, unknown> | undefined;
-      const started = performance.now();
       try {
         if ((await assets.status()).state !== 'cached')
           throw new Error('Download the model in Settings before using local AI.');
         await ensureReady();
+        // Reassert readiness for each request so the bridge enforces the short
+        // forward deadline even if a concurrent status/check saw an idle cache.
+        emit({ ...current, state: 'ready' });
+        const started = performance.now();
         const task = {
           state: { subject },
           question:
@@ -261,14 +306,23 @@ export function createBrowserEngine(
             },
             { role: 'user', content: JSON.stringify(task) },
           ],
-          { add_generation_prompt: true, return_dict: true, enable_thinking: false },
+          {
+            chat_template: chatTemplate,
+            add_generation_prompt: true,
+            return_dict: true,
+            enable_thinking: false,
+          },
         );
         const count = inputs.input_ids?.dims.at(-1);
         if (!count || count > MAX_INPUT_TOKENS)
           throw new Error('This subject exceeds the local AI token budget. Choose a tag manually.');
         inputs.num_logits_to_keep = new runtime!.Tensor('int64', [1n], []);
         outputs = await model!(inputs);
-        const logits = outputs.logits as Tensor | undefined;
+        const rawLogits = outputs.logits as Tensor | undefined;
+        // ORT stores float16 data as Uint16 bit patterns on some browsers. Match the
+        // runtime's generation path: converting to float32 decodes those bits correctly.
+        const logits = rawLogits?.to('float32');
+        if (logits) outputs.scoring_logits = logits;
         const vocabSize = logits?.dims.at(-1);
         if (
           !logits ||

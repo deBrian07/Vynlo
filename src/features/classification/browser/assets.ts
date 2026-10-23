@@ -34,6 +34,7 @@ export const TEXT_ASSETS = [
 ] as const;
 export const MODEL_DOWNLOAD_BYTES = TEXT_ASSETS.reduce((sum, asset) => sum + asset.maxBytes, 0);
 const BASE = `https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REVISION}/`;
+export const modelAssetUrl = (path: (typeof TEXT_ASSETS)[number]['path']) => BASE + path;
 const MARKER = 'https://vynlo.invalid/cache/model-complete';
 const KEY = `${MODEL_REPO}@${MODEL_REVISION}`;
 const byteHeader = 'X-Vynlo-Asset-Bytes';
@@ -50,6 +51,7 @@ export function createModelAssets(
   options: {
     cacheStorage?: CacheStorage;
     fetcher?: typeof fetch;
+    estimateStorage?: () => Promise<StorageEstimate>;
     onProgress?: (status: BrowserRuntimeStatus) => void;
   } = {},
 ) {
@@ -76,6 +78,7 @@ export function createModelAssets(
       state: downloading ? 'downloading' : complete ? 'cached' : 'not-downloaded',
       downloadedBytes,
       totalBytes: MODEL_DOWNLOAD_BYTES,
+      modelCached: complete,
     };
   };
   return {
@@ -85,6 +88,20 @@ export function createModelAssets(
       downloading = true;
       try {
         const cache = await open();
+        const estimateStorage =
+          options.estimateStorage ??
+          globalThis.navigator?.storage?.estimate?.bind(globalThis.navigator.storage);
+        if (estimateStorage) {
+          // Estimates are advisory; unknown quotas must not prevent a supported browser setup.
+          const estimate = await estimateStorage().catch(() => null);
+          if (estimate && Number.isFinite(estimate.quota) && Number.isFinite(estimate.usage)) {
+            const remaining = MODEL_DOWNLOAD_BYTES - (await status()).downloadedBytes;
+            if (estimate.quota! - estimate.usage! < remaining)
+              throw new Error(
+                'Model download needs more browser storage. Free some space and try again.',
+              );
+          }
+        }
         await cache.delete(MARKER);
         let downloadedBytes = 0;
         for (const asset of TEXT_ASSETS) {
@@ -104,9 +121,8 @@ export function createModelAssets(
           });
           if (!response.ok || (response.url && !approvedUrl(response.url)) || !response.body)
             throw new Error('The model download could not be verified.');
-          const declared = response.headers.get('content-length');
-          if (declared !== null && Number(declared) !== asset.maxBytes)
-            throw new Error('The model file has an unexpected size.');
+          // Fetch exposes decompressed bytes, while Content-Length may describe compressed
+          // bytes and CORS may hide Content-Encoding. Verify the bounded decoded stream instead.
           let received = 0;
           let lastProgress = 0;
           const reader = response.body.getReader();
@@ -177,6 +193,7 @@ export function createModelAssets(
     },
     async clear() {
       if (downloading) throw new Error('Cancel the download before removing model files.');
+      if (!storage) throw new Error('Model storage is unavailable in this browser.');
       await storage.delete(MODEL_CACHE);
     },
     async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {

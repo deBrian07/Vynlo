@@ -20,7 +20,8 @@ export function confirmedExamples(
   excludeThread?: string,
 ) {
   const seen = new Set<string>();
-  return tags
+  return [...tags]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
     .filter((tag) => {
       const normalized = normalizeExample(tag.title);
       if (
@@ -35,8 +36,7 @@ export function confirmedExamples(
         return false;
       seen.add(normalized);
       return true;
-    })
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    });
 }
 /** Only explicit user decisions become references. No model-generated feedback loop. */
 export function buildDecisionContext(

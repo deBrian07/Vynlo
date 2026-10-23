@@ -9,6 +9,7 @@ import {
 import {
   CATEGORY_IDS,
   type Prediction,
+  type TaggedConversation,
   type UserCategory,
 } from '../../src/features/classification/model';
 import { VynloDatabase } from '../../src/services/storage/database';
@@ -185,4 +186,26 @@ it('cancels in-flight predictions after a category changes', async () => {
   } finally {
     await f.db.close();
   }
+});
+
+it('uses the newest confirmation when subjects normalize to the same example', () => {
+  const base: TaggedConversation = {
+    ...ref,
+    id: 'old',
+    category: 'work',
+    source: 'manual',
+    reviewed: true,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const newer = {
+    ...base,
+    id: 'new',
+    threadId: '1234567890abcdee',
+    title: '  ROBOTICS   practice ',
+    updatedAt: 5,
+  };
+  const tags = [base, newer];
+  expect(confirmedExamples(tags, ref.accountId, 'work')).toEqual([newer]);
+  expect(tags).toEqual([base, newer]);
 });
